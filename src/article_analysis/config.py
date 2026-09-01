@@ -17,6 +17,7 @@ class Settings:
     corpus_manifest: Path
     search_db: Path
     star_candidates: Path
+    star_target_seed: Path
     include_extensions: tuple[str, ...]
     context_chars: int
     min_star: float
@@ -54,6 +55,7 @@ def load_settings(config_path: str | Path = "config.example.yaml") -> Settings:
         corpus_manifest=_resolve_path(workspace_root, workspace_cfg.get("corpus_manifest", "corpus_manifest.parquet")),
         search_db=_resolve_path(workspace_root, workspace_cfg.get("search_db", "corpus.sqlite3")),
         star_candidates=_resolve_path(workspace_root, workspace_cfg.get("star_candidates", "star_candidates.csv")),
+        star_target_seed=_resolve_path(workspace_root, workspace_cfg.get("star_target_seed", "star_target_seed.csv")),
         include_extensions=tuple(ext.lower() for ext in corpus_cfg.get("include_extensions", [".html", ".htm", ".txt", ".md", ".json"])),
         context_chars=int(star_cfg.get("context_chars", 140)),
         min_star=float(star_cfg.get("min_star", 1.0)),
