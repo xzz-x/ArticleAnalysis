@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local corpus/workspace (large data must stay out of Git)
+.local/
+data/raw/
+data/interim/
+data/processed/
+*.sqlite
+*.sqlite3
+*.db
+*.parquet
+
+# Secrets / local config
+.env
+config.local.yaml
+credentials*.json
+token*.json
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
