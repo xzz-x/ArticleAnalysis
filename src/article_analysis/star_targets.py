@@ -6,9 +6,10 @@ from pathlib import Path
 
 import pandas as pd
 
-ARABIC_STAR_RE = re.compile(r"(?<!\d)(?P<star>[1-6](?:\.\d)?)\s*星(?:级)?")
+ARABIC_HALF_RE = re.compile(r"(?<!\d)(?P<star>[1-5])\s*星半")
+ARABIC_STAR_RE = re.compile(r"(?<!\d)(?P<star>[1-6](?:\.\d)?)\s*星(?!半)(?:级)?")
 CHINESE_HALF_RE = re.compile(r"(?P<star>[一二三四五])\s*星半")
-CHINESE_STAR_RE = re.compile(r"(?P<star>[一二三四五六])\s*星(?:级)?")
+CHINESE_STAR_RE = re.compile(r"(?P<star>[一二三四五六])\s*星(?!半)(?:级)?")
 CHINESE_NUMBERS = {"一": 1.0, "二": 2.0, "三": 3.0, "四": 4.0, "五": 5.0, "六": 6.0}
 
 
@@ -60,6 +61,7 @@ def extract_candidates_from_article(
     seen: set[tuple[int, int, float]] = set()
 
     patterns = (
+        ("arabic_half", ARABIC_HALF_RE),
         ("arabic", ARABIC_STAR_RE),
         ("chinese_half", CHINESE_HALF_RE),
         ("chinese", CHINESE_STAR_RE),
@@ -70,6 +72,8 @@ def extract_candidates_from_article(
             raw_star = match.group("star")
             if pattern_name == "arabic":
                 star = float(raw_star)
+            elif pattern_name == "arabic_half":
+                star = float(raw_star) + 0.5
             elif pattern_name == "chinese_half":
                 star = CHINESE_NUMBERS[raw_star] + 0.5
             else:
