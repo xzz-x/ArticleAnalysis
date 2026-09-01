@@ -1,0 +1,24 @@
+timezone: Asia/Shanghai
+
+corpus:
+  # Keep the multi-GB Google Drive corpus outside Git.
+  # Set ARTICLE_ANALYSIS_CORPUS_ROOT to the locally synced/mounted folder.
+  root_env: ARTICLE_ANALYSIS_CORPUS_ROOT
+  include_extensions:
+    - .html
+    - .htm
+    - .txt
+    - .md
+    - .json
+
+workspace:
+  root: .local/screw_star
+  articles_parquet: articles.parquet
+  corpus_manifest: corpus_manifest.parquet
+  search_db: corpus.sqlite3
+  star_candidates: star_candidates.csv
+
+star_extraction:
+  context_chars: 140
+  min_star: 1.0
+  max_star: 6.0
