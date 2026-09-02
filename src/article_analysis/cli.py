@@ -9,7 +9,12 @@ import pandas as pd
 from .config import load_settings
 from .corpus import ingest_corpus
 from .index import build_search_index, search_index
-from .star_targets import build_realtime_target_seed, extract_star_candidates
+from .star_targets import (
+    build_daily_target_review_queue,
+    build_daily_realtime_targets,
+    build_realtime_target_seed,
+    extract_star_candidates,
+)
 
 
 def cmd_ingest(args: argparse.Namespace) -> None:
@@ -98,6 +103,33 @@ def cmd_build_target_seed(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_build_daily_target(args: argparse.Namespace) -> None:
+    settings = load_settings(args.config)
+    target = build_daily_realtime_targets(
+        settings.articles_parquet,
+        settings.star_daily_target,
+    )
+    review = build_daily_target_review_queue(
+        settings.articles_parquet,
+        settings.star_daily_review_queue,
+    )
+    print(
+        json.dumps(
+            {
+                "target_rows": int(len(target)),
+                "first_date": target["date"].min() if not target.empty else None,
+                "last_date": target["date"].max() if not target.empty else None,
+                "output": str(settings.star_daily_target),
+                "unresolved_rows": int(len(review)),
+                "review_queue": str(settings.star_daily_review_queue),
+                "review_status": "auto_high_confidence",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="ArticleAnalysis corpus research CLI")
     parser.add_argument("--config", default="config.example.yaml", help="YAML configuration path")
@@ -119,6 +151,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     seed = sub.add_parser("build-target-seed", help="Build conservative realtime star Target seed")
     seed.set_defaults(func=cmd_build_target_seed)
+
+    daily = sub.add_parser(
+        "build-daily-target",
+        help="Build one exact realtime A-share Target per article date",
+    )
+    daily.set_defaults(func=cmd_build_daily_target)
 
     return parser
 
