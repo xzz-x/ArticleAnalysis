@@ -15,6 +15,37 @@ CHINESE_HALF_RE = re.compile(r"(?P<star>[一二三四五])\s*星半")
 CHINESE_STAR_RE = re.compile(r"(?P<star>[一二三四五六])\s*星(?!半)(?:级)?")
 CHINESE_NUMBERS = {"一": 1.0, "二": 2.0, "三": 3.0, "四": 4.0, "五": 5.0, "六": 6.0}
 
+# The generic candidate scanner below intentionally has broad recall. Building the
+# actual daily A-share Target needs a narrower, article-opening extractor so that
+# prior-article links, book ratings, intraday values and global-market stars do not
+# become labels.
+PRECISE_STAR_TOKEN = (
+    r"(?<![\d.\-–—~～至])(?<!\d到)"
+    r"(?P<star>[1-5](?:\.\d)?)(?!\s*[-–—~～至到])\s*星(?:级)?"
+)
+ASHARE_ARTICLE_MARKER = "指数估值数据"
+GLOBAL_ARTICLE_MARKER = "美股指数估值数据"
+OPENING_TEXT_CHARS = 3000
+
+CLOSE_STAR_RE = re.compile(
+    r"(?:截止到收盘|截至收盘|截止收盘|到收盘(?:的时候)?|收盘(?:时|后)?)"
+    r"[^。！？\n]{0,100}?" + PRECISE_STAR_TOKEN
+)
+TODAY_MARKET_STAR_RE = re.compile(
+    r"(?:今天|今日)(?:大盘|A股|市场)[^。！？\n]{0,140}?" + PRECISE_STAR_TOKEN
+)
+OPENING_STATE_STAR_RE = re.compile(
+    r"(?:还在|回到|回到了|重回|达到|涨到|上涨到|摸到)\s*" + PRECISE_STAR_TOKEN
+)
+APPROX_RANGE_RE = re.compile(
+    r"(?P<low>[1-5](?:\.\d)?)\s*[-–—~～至到]\s*"
+    r"(?P<high>[1-5](?:\.\d)?)\s*星(?:级)?"
+)
+NEAR_THRESHOLD_RE = re.compile(
+    r"距离\s*(?P<star>[1-5](?:\.\d)?)\s*星(?:级)?\s*很接近"
+)
+MARKET_CLOSED_RE = re.compile(r"A股没有交易[^。！？\n]{0,60}")
+
 RANGE_RE = re.compile(
     r"(?:[1-6](?:\.\d)?|[一二三四五六])\s*星(?:级)?\s*[-–—~～至到]\s*"
     r"(?:[1-6](?:\.\d)?|[一二三四五六])"
@@ -83,10 +114,63 @@ class StarCandidate:
     relative_path: str
 
 
+@dataclass(frozen=True)
+class RealtimeStarObservation:
+    star: float
+    evidence: str
+    evidence_method: str
+    confidence: float
+
+
 def _context(text: str, start: int, end: int, chars: int) -> str:
     left = max(0, start - chars)
     right = min(len(text), end + chars)
     return re.sub(r"\s+", " ", text[left:right]).strip()
+
+
+def _is_ashare_daily_article(title: str) -> bool:
+    return ASHARE_ARTICLE_MARKER in title and GLOBAL_ARTICLE_MARKER not in title
+
+
+def extract_realtime_observation_from_article(
+    *,
+    title: str,
+    text: str,
+    opening_chars: int = OPENING_TEXT_CHARS,
+) -> RealtimeStarObservation | None:
+    """Extract one exact closing A-share star from the article opening.
+
+    Evidence priority is deliberate:
+
+    1. an explicit closing cue (``截止到收盘`` / ``到收盘``);
+    2. a same-sentence ``今天大盘`` style statement;
+    3. the first opening-state phrase such as ``还在4.2星``.
+
+    The Markdown H1 is removed before scanning. This matters for articles such as
+    2026-01-06, whose title rounds the regime to ``3星级`` while the body gives the
+    exact closing value ``3.9星``. Range-only statements such as ``4.9-5星`` are
+    rejected by ``PRECISE_STAR_TOKEN``.
+    """
+    if not _is_ashare_daily_article(title or ""):
+        return None
+
+    lines = (text or "").splitlines()
+    opening = "\n".join(lines[1:])[:opening_chars] if lines else ""
+    patterns = (
+        ("closing_statement", CLOSE_STAR_RE, 1.0),
+        ("today_market_statement", TODAY_MARKET_STAR_RE, 0.995),
+        ("opening_state_statement", OPENING_STATE_STAR_RE, 0.99),
+    )
+    for method, pattern, confidence in patterns:
+        match = pattern.search(opening)
+        if match:
+            return RealtimeStarObservation(
+                star=float(match.group("star")),
+                evidence=re.sub(r"\s+", " ", match.group(0)).strip(),
+                evidence_method=method,
+                confidence=confidence,
+            )
+    return None
 
 
 def _relation(title: str, context: str, source_location: str) -> str:
@@ -342,6 +426,134 @@ def build_realtime_target_seed(candidates: pd.DataFrame, output_csv: Path) -> pd
             # Multiple same-day articles may repeat the same market star. Keep the strongest row.
             result = result.drop_duplicates(subset=["date", "star"], keep="first")
 
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    result.to_csv(output_csv, index=False, encoding="utf-8-sig")
+    return result
+
+
+def build_daily_realtime_targets(
+    articles_parquet: Path,
+    output_csv: Path,
+    *,
+    opening_chars: int = OPENING_TEXT_CHARS,
+) -> pd.DataFrame:
+    """Build a conservative daily A-share Target directly from article openings.
+
+    One exact observation is selected per canonical article. If more than one
+    canonical article exists for a date and their values disagree, that date is
+    omitted instead of being guessed.
+    """
+    articles = pd.read_parquet(articles_parquet)
+    rows: list[dict] = []
+    for article in articles.itertuples(index=False):
+        if not _is_canonical(article):
+            continue
+        observation = extract_realtime_observation_from_article(
+            title=article.title,
+            text=article.text or "",
+            opening_chars=opening_chars,
+        )
+        if observation is None:
+            continue
+        rows.append(
+            {
+                "date": getattr(article, "publish_date", None),
+                "star": observation.star,
+                "market": "A股",
+                "source_type": "公众号当日估值文章",
+                "realtime_or_backfilled": "realtime",
+                "article_id": article.article_id,
+                "title": article.title,
+                "source_url": getattr(article, "source_url", None),
+                "confidence": observation.confidence,
+                "evidence": observation.evidence,
+                "evidence_method": observation.evidence_method,
+                "review_status": "auto_high_confidence",
+                "relative_path": article.relative_path,
+            }
+        )
+
+    result = pd.DataFrame(rows)
+    if not result.empty:
+        keep: list[pd.DataFrame] = []
+        for _, group in result.groupby("date", sort=False, dropna=False):
+            if group["star"].nunique(dropna=True) == 1:
+                keep.append(group.sort_values("confidence", ascending=False).head(1))
+        result = pd.concat(keep, ignore_index=True) if keep else result.iloc[0:0]
+        result = result.sort_values("date", na_position="last").reset_index(drop=True)
+
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    result.to_csv(output_csv, index=False, encoding="utf-8-sig")
+    return result
+
+
+def build_daily_target_review_queue(
+    articles_parquet: Path,
+    output_csv: Path,
+    *,
+    opening_chars: int = OPENING_TEXT_CHARS,
+) -> pd.DataFrame:
+    """Account for A-share daily articles that lack one exact text Target."""
+    articles = pd.read_parquet(articles_parquet)
+    rows: list[dict] = []
+    for article in articles.itertuples(index=False):
+        if not _is_canonical(article) or not _is_ashare_daily_article(article.title):
+            continue
+        if extract_realtime_observation_from_article(
+            title=article.title,
+            text=article.text or "",
+            opening_chars=opening_chars,
+        ) is not None:
+            continue
+
+        lines = (article.text or "").splitlines()
+        opening = "\n".join(lines[1:])[:opening_chars] if lines else ""
+        compact = re.sub(r"\s+", " ", opening).strip()
+        range_match = APPROX_RANGE_RE.search(opening)
+        threshold_match = NEAR_THRESHOLD_RE.search(opening)
+
+        market_closed_match = MARKET_CLOSED_RE.search(opening)
+        if market_closed_match:
+            reason = "market_closed_no_new_target"
+            evidence = re.sub(r"\s+", " ", market_closed_match.group(0)).strip()
+        elif range_match:
+            reason = "approximate_range"
+            evidence = re.sub(r"\s+", " ", range_match.group(0)).strip()
+        elif threshold_match:
+            reason = "near_threshold_only"
+            evidence = re.sub(r"\s+", " ", threshold_match.group(0)).strip()
+        else:
+            reason = "no_exact_text_evidence"
+            evidence = compact[:240]
+
+        rows.append(
+            {
+                "date": getattr(article, "publish_date", None),
+                "market": "A股",
+                "article_id": article.article_id,
+                "title": article.title,
+                "source_url": getattr(article, "source_url", None),
+                "reason": reason,
+                "range_low": (
+                    min(float(range_match.group("low")), float(range_match.group("high")))
+                    if range_match
+                    else None
+                ),
+                "range_high": (
+                    max(float(range_match.group("low")), float(range_match.group("high")))
+                    if range_match
+                    else None
+                ),
+                "reference_star": float(threshold_match.group("star")) if threshold_match else None,
+                "evidence": evidence,
+                "review_status": "pending_manual_or_image_review",
+                "relative_path": article.relative_path,
+            }
+        )
+
+    result = pd.DataFrame(rows)
+    if not result.empty:
+        result = result.sort_values("date", na_position="last").reset_index(drop=True)
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     result.to_csv(output_csv, index=False, encoding="utf-8-sig")
     return result
