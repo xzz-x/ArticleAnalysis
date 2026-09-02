@@ -18,6 +18,8 @@ class Settings:
     search_db: Path
     star_candidates: Path
     star_target_seed: Path
+    star_daily_target: Path
+    star_daily_review_queue: Path
     include_extensions: tuple[str, ...]
     context_chars: int
     min_star: float
@@ -56,6 +58,11 @@ def load_settings(config_path: str | Path = "config.example.yaml") -> Settings:
         search_db=_resolve_path(workspace_root, workspace_cfg.get("search_db", "corpus.sqlite3")),
         star_candidates=_resolve_path(workspace_root, workspace_cfg.get("star_candidates", "star_candidates.csv")),
         star_target_seed=_resolve_path(workspace_root, workspace_cfg.get("star_target_seed", "star_target_seed.csv")),
+        star_daily_target=_resolve_path(workspace_root, workspace_cfg.get("star_daily_target", "star_daily_target.csv")),
+        star_daily_review_queue=_resolve_path(
+            workspace_root,
+            workspace_cfg.get("star_daily_review_queue", "star_daily_review_queue.csv"),
+        ),
         include_extensions=tuple(ext.lower() for ext in corpus_cfg.get("include_extensions", [".html", ".htm", ".txt", ".md", ".json"])),
         context_chars=int(star_cfg.get("context_chars", 140)),
         min_star=float(star_cfg.get("min_star", 1.0)),
