@@ -124,3 +124,31 @@ def test_daily_observation_rejects_second_endpoint_of_range():
         ),
     )
     assert row is None
+
+
+def test_daily_observation_accepts_exact_dated_statement_later_in_body():
+    row = extract_realtime_observation_from_article(
+        title="［2月17日］指数估值数据(震荡)",
+        publish_date="2025-02-17",
+        text=(
+            "# ［2月17日］指数估值数据(震荡)\n"
+            "今天大盘处于4.9-5星边界。\n"
+            "目前2025年2月17日，市场在4.9星级，也是适合投资的阶段。"
+        ),
+    )
+    assert row is not None
+    assert row.star == 4.9
+    assert row.evidence_method == "dated_current_statement"
+
+
+def test_daily_observation_rejects_mismatched_dated_statement():
+    row = extract_realtime_observation_from_article(
+        title="［1月6日］指数估值数据(震荡)",
+        publish_date="2025-01-06",
+        text=(
+            "# ［1月6日］指数估值数据(震荡)\n"
+            "今天大盘在5.2-5.3星上下。\n"
+            "目前2024年1月6日，市场在5.3星级。"
+        ),
+    )
+    assert row is None
