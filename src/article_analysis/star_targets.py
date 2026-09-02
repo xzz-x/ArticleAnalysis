@@ -45,6 +45,10 @@ NEAR_THRESHOLD_RE = re.compile(
     r"距离\s*(?P<star>[1-5](?:\.\d)?)\s*星(?:级)?\s*很接近"
 )
 MARKET_CLOSED_RE = re.compile(r"A股没有交易[^。！？\n]{0,60}")
+DATED_CURRENT_STAR_RE = re.compile(
+    r"目前\s*(?P<year>\d{4})年(?P<month>\d{1,2})月(?P<day>\d{1,2})日"
+    r"[^。！？\n]{0,80}?市场在\s*" + PRECISE_STAR_TOKEN
+)
 
 RANGE_RE = re.compile(
     r"(?:[1-6](?:\.\d)?|[一二三四五六])\s*星(?:级)?\s*[-–—~～至到]\s*"
@@ -136,6 +140,7 @@ def extract_realtime_observation_from_article(
     *,
     title: str,
     text: str,
+    publish_date: str | None = None,
     opening_chars: int = OPENING_TEXT_CHARS,
 ) -> RealtimeStarObservation | None:
     """Extract one exact closing A-share star from the article opening.
@@ -170,6 +175,24 @@ def extract_realtime_observation_from_article(
                 evidence_method=method,
                 confidence=confidence,
             )
+
+    # Some monthly-cashflow articles use only a range in the opening, but later
+    # state an exact value together with the full current date. Require an exact
+    # date match so copied historical/template text cannot silently become Target.
+    if publish_date:
+        for match in DATED_CURRENT_STAR_RE.finditer(text or ""):
+            evidence_date = (
+                f"{int(match.group('year')):04d}-"
+                f"{int(match.group('month')):02d}-"
+                f"{int(match.group('day')):02d}"
+            )
+            if evidence_date == str(publish_date):
+                return RealtimeStarObservation(
+                    star=float(match.group("star")),
+                    evidence=re.sub(r"\s+", " ", match.group(0)).strip(),
+                    evidence_method="dated_current_statement",
+                    confidence=0.985,
+                )
     return None
 
 
@@ -451,6 +474,7 @@ def build_daily_realtime_targets(
         observation = extract_realtime_observation_from_article(
             title=article.title,
             text=article.text or "",
+            publish_date=getattr(article, "publish_date", None),
             opening_chars=opening_chars,
         )
         if observation is None:
@@ -502,6 +526,7 @@ def build_daily_target_review_queue(
         if extract_realtime_observation_from_article(
             title=article.title,
             text=article.text or "",
+            publish_date=getattr(article, "publish_date", None),
             opening_chars=opening_chars,
         ) is not None:
             continue
