@@ -123,6 +123,29 @@ relative_path
 
 注意：`star_candidates.csv` 只是**候选语句**，不是最终 Target。文章里可能出现历史回顾、举例、规则解释等星级数字，因此必须继续做语义复核，并区分 realtime 与 backfilled 数据。
 
+### 5. 构建每日 A 股 realtime Target
+
+```bash
+article-analysis --config config.example.yaml build-daily-target
+```
+
+输出：
+
+```text
+.local/screw_star/star_daily_target.csv
+.local/screw_star/star_daily_review_queue.csv
+```
+
+该步骤只扫描每篇 A 股“指数估值数据”文章的开头，并按以下证据优先级选择一个值：
+
+1. 明确的收盘语句，例如“截止到收盘，回到4.2星”；
+2. 同句的“今天大盘”实时语句；
+3. 开头的“还在 / 回到 / 重回”等状态语句。
+
+它会排除“美股指数估值数据”中的全球星级、往期文章链接、图书星级和正文中的历史回顾；盘中与收盘值同时出现时优先收盘值；正文只提供 `4.9-5星` 等区间时不猜测精确值，而是写入 review queue。
+
+2025-01-02 至 2026-08-31 的当前语料实跑结果：391 个精确 A 股 realtime Target；17 篇未进入精确 Target，其中 5 篇为 A 股休市、11 篇只提供星级区间、1 篇只提供“接近某星”的阈值信息。
+
 ## 目标 Target 数据结构
 
 后续经过验证后生成可进入 Git 的小型研究数据：
@@ -156,9 +179,7 @@ notes
 
 ## 下一步
 
-1. 对 Google Drive 文章目录跑一次完整 ingest；
-2. 检查目录命名、正文格式和日期识别率；
-3. 建立 FTS 搜索库；
-4. 扫描“星级 / 五星级 / 今天几星 / 指数估值数据”等语句；
-5. 建立第一版可审计的历史星级 Target；
-6. Target 足够后，再引入 ETF 项目中的市场因子数据进行逆向拟合。
+1. 对 review queue 中 12 个交易日的区间/阈值证据做估值表图片复核，恢复精确小数；
+2. 将相同 pipeline 扩展到 2012–2024 历史语料；
+3. 建立 FTS 搜索库并抽样审计低置信度候选；
+4. Target 足够后，再引入 ETF 项目中的市场因子数据进行逆向拟合。
