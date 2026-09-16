@@ -1,0 +1,43 @@
+name: Star replica v1
+
+on:
+  push:
+    branches:
+      - research/screw-star-replica
+    paths:
+      - "research/star_replica_v1.py"
+      - ".github/workflows/star-replica-v1.yml"
+      - "data/verified/daily_star_2022.csv"
+      - "data/verified/daily_star_2023.csv"
+      - "data/verified/daily_star_2024.csv"
+      - "data/verified/daily_star_2025.csv"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/screw-star-replica
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install pandas
+      - name: Run baseline
+        run: python research/star_replica_v1.py
+      - name: Commit generated research outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/derived/csi_all_share_2022_2025.csv data/derived/star_replica_v1_metrics.csv data/derived/star_replica_v1_predictions.csv
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+          else
+            git commit -m "research: generate star replica v1 baseline outputs"
+            git push origin HEAD:research/screw-star-replica
+          fi
