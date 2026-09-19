@@ -651,3 +651,367 @@ only when the above models leave stable, interpretable residual patterns
 - “约 20% 估值变化 = 1 星”的约束是否成立。
 
 最终目标仍是复刻规则，而不是追求样本内预测精度。
+
+
+---
+
+## 10. API 调用次数最小化策略（2026-09-19核对官方文档后更新）
+
+### 10.1 总原则
+
+本项目的 API 设计优先级调整为：
+
+```text
+最少调用次数 > 响应体大小 > 本地存储大小
+```
+
+即：
+
+1. 时间范围接口一律尽量取满官方允许的 10 年；
+2. 有 `metricsList` 的接口，一次请求尽量把所有相关指标都塞满；
+3. 不按指标拆请求；
+4. 只有接口明确限制指标数时才拆；
+5. 本地保留原始响应，后续衍生指标全部离线计算；
+6. 对文档没有注明 `metricsList` 上限的接口，先尝试“最大字段集单次请求”；只有真实 API 返回字段数/响应体限制错误时才自动拆包重试；
+7. 不使用 `limit`，避免截断历史数据；
+8. 每次成功请求保存 request manifest（endpoint、时间窗、代码、metrics、hash），避免重复消耗额度。
+
+### 10.2 推荐统一历史窗口
+
+当前星级研究正式目标期覆盖 2012–2026，因此所有“最大10年”接口统一切成两个窗口：
+
+```text
+W1 = 2012-01-01 ~ 2021-12-31
+W2 = 2022-01-01 ~ 当前日期
+```
+
+这样每个“单代码 + 10年上限”的接口只需要 2 次调用。
+
+如果后续决定把估值背景扩展到 2005 年，则新增一个更早窗口即可，不改现有缓存。
+
+### 10.3 指数基本面：每个指数每10年只调用1次
+
+Endpoint:
+
+```text
+POST /api/cn/index/fundamental
+```
+
+官方限制：
+
+- `stockCodes` 在指定 `date` 时最多可 100 个；
+- **只要使用 `startDate` 做历史区间查询，就只能传 1 个指数代码**；
+- 单次时间跨度最多 10 年；
+- 官方文档没有注明该接口 `metricsList` 的数量上限。
+
+因此历史抓取的最优形态：
+
+```text
+指数 1000002 × W1 = 1 call
+指数 1000002 × W2 = 1 call
+指数 000985  × W1 = 1 call
+指数 000985  × W2 = 1 call
+
+合计 = 4 calls
+```
+
+每次请求不再只抓 PE/PB，而是把所有可能相关的字段一起请求。
+
+#### A. 原始市场字段全部一起取
+
+```text
+tv
+ta
+to_r
+cp
+cpc
+cpa
+r_cp
+r_cpc
+mc
+mc_om
+cmc
+ecmc
+fpa
+fra
+fnpa
+fb
+ssa
+sra
+snsa
+sb
+ha_shm
+mm_nba
+fet_as_ma
+fet_snif_ma
+launchDate
+```
+
+#### B. 四类估值的 5 种聚合方式全部一起取
+
+```text
+pe_ttm.{mcw,ew,ewpvo,avg,median}
+pb.{mcw,ew,ewpvo,avg,median}
+ps_ttm.{mcw,ew,ewpvo,avg,median}
+dyr.{mcw,ew,ewpvo,avg,median}
+```
+
+#### C. 历史统计优先“最大化一次请求”
+
+维度：
+
+```text
+granularity = fs,y20,y10,y5,y3,y1
+metricsType = mcw,ew,ewpvo,avg,median
+statisticsDataType = cv,cvpos,minv,maxv,maxpv,q2v,q5v,q8v,avgv
+metricsName = pe_ttm,pb,ps_ttm,dyr
+```
+
+完整笛卡尔积理论上约为：
+
+```text
+4 × 6 × 5 × 9 = 1080 个统计字段
+```
+
+加上 20 个当前估值字段和约 25 个原始市场字段，单次“最宽”请求约 1125 个字段。
+
+官方文档目前**没有写明指数基本面 metricsList 数量上限**。因此代码应：
+
+```text
+先尝试 FULL request
+    ↓ success
+保存完整宽表，不再额外调用
+    ↓ failure（若返回 undocumented metrics/response limit）
+按固定大块自动拆分
+```
+
+不要一开始人为拆成几十次调用。
+
+实际建模并不一定需要 1080 个历史统计字段，但在 API 调用额度比存储更宝贵的前提下，只要接口接受，就一次完整保存，未来无需重新消耗调用次数。
+
+### 10.4 指数财报：单指数历史请求一次最多128个指标
+
+Endpoint:
+
+```text
+POST /api/cn/index/fs/hybrid
+```
+
+A股全指/中证全指均属于混合市场口径研究对象，优先用 hybrid 财报接口。
+
+官方限制：
+
+- `startDate` 历史查询时只能传 1 个指数代码；
+- 时间跨度最多 10 年；
+- 单指数时 `metricsList` 最多 **128 个指标**；
+- 多指数时最多 48 个指标。
+
+因此不要尝试把 2 个指数放到同一个历史请求里，因为历史模式本来就禁止多代码，而且单指数还能拿到 128 字段上限。
+
+对星级研究，先设计一个 **<=128 字段的最大财报包**，同时覆盖：
+
+- 营业收入/营业总收入；
+- 净利润；
+- 归母净利润；
+- 扣非归母净利润；
+- TTM；
+- TTM同比；
+- 单季；
+- 单季同比；
+- ROE / ROA；
+- 总资产；
+- 总负债；
+- 净资产/股东权益；
+- 经营现金流；
+- 自由现金流；
+- 融资相关字段；
+- 其他可能反映全市场盈利和财务质量的指标。
+
+调用数：
+
+```text
+2 indices × 2 windows × 1 packed financial bundle = 4 calls
+```
+
+如果后续确实需要超过 128 个不同财务指标，再新增第二个 <=128 字段 bundle；第一阶段不要预先拆分。
+
+### 10.5 国债：一个请求同时取大陆全部期限
+
+Endpoint:
+
+```text
+POST /api/macro/national-debt
+```
+
+每个 10 年窗口只需要 1 call，并在同一次 `metricsList` 中取：
+
+```text
+tcm_m3
+tcm_m6
+tcm_y1
+tcm_y2
+tcm_y3
+tcm_y5
+tcm_y7
+tcm_y10
+tcm_y20
+tcm_y30
+```
+
+因此 2012–当前：
+
+```text
+W1 = 1 call
+W2 = 1 call
+总计 = 2 calls
+```
+
+虽然星级核心只明确需要 10Y，但其他期限零额外调用，全部保存。
+
+### 10.6 GDP：一个请求塞入大陆所有 GDP 指标
+
+Endpoint:
+
+```text
+POST /api/macro/gdp
+```
+
+官方也是 10 年上限，且文档未注明 `metricsList` 数量上限。
+
+因此每个窗口把大陆全部支持的 GDP 类型及其统计表达式一次获取，包括：
+
+- GDP；
+- 不变价 GDP；
+- 人均 GDP；
+- GNI；
+- 第一/第二/第三产业 GDP；
+- 三大产业对 GDP 贡献率；
+- 年度累计/同比；
+- 季度累计/同比；
+- 单季/同比/环比/年比；
+- TTM / TTM同比 / TTM环比。
+
+2012–当前 = **2 calls**。
+
+星级模型主要用 `q.gdp.ttm`，但既然其他 GDP 字段可以同一次拿到，就全部保留。
+
+### 10.7 投资者：所有账户类型一次取完
+
+Endpoint:
+
+```text
+POST /api/macro/investor
+```
+
+每个 10 年窗口同时取：
+
+```text
+ni
+nia
+nib
+non_ni
+non_nia
+non_nib
+nni_m
+n_non_ni_m
+nni_w
+n_non_ni_w
+```
+
+2012–当前 = **2 calls**。
+
+月度/周度字段会因统计制度变更在不同年份自然为空，不需要为此拆请求。
+
+### 10.8 全市场融资融券：接口本身自动返回全部字段
+
+Endpoint:
+
+```text
+POST /api/cn/company/market-data/margin-trading-and-securities-lending
+```
+
+该接口没有 `metricsList`，一次自动返回所有字段：
+
+- 融资买入；
+- 融资偿还；
+- 融资余额；
+- 融券卖出/偿还/余量/余额；
+- 融资融券余额；
+- 可充抵保证金证券市值；
+- 担保资金；
+- 担保物总价值；
+- 平均维持担保比例。
+
+当前官方页面没有像多数接口那样写明“开始和结束时间间隔不超过10年”。
+
+因此实现顺序：
+
+```text
+第一尝试：2012-01-01 ~ current，一次调用
+若服务器实际限制时间范围，再退回 W1/W2 两次调用
+```
+
+不要预先拆。
+
+### 10.9 基金数据：暂时不要做全基金暴力扫描
+
+基金份额接口一次只能传 1 个基金代码；而基金基础信息当前约有 3 万只基金，并且列表接口分页。
+
+如果现在为了“新基金规模/老基金规模”直接全市场逐基金抓 10 年份额，会快速消耗大量调用额度，不符合本项目当前的 API 预算目标。
+
+第一阶段：
+
+1. 先充分使用指数基本面同一请求中免费附带的 `fet_as_ma` / `fet_snif_ma`；
+2. 保留基金基础信息接口用于后续设计精准股票型/权益基金 universe；
+3. 等核心模型残差显示基金因子确实有增量价值，再集中抓基金层数据；
+4. 若抓基金，先建立唯一主基金 universe，避免 A/C/E 份额重复请求。
+
+### 10.10 第一阶段最低调用预算
+
+按 2012-01-01 至当前、2 个核心指数估算：
+
+| 数据块 | 预计调用数 |
+|---|---:|
+| 指数基本面（2指数×2窗口） | 4 |
+| 指数财报（2指数×2窗口，<=128字段/包） | 4 |
+| 中国国债全部期限 | 2 |
+| GDP 全字段 | 2 |
+| 投资者全字段 | 2 |
+| 全市场融资融券 | 1（若服务端隐含10年限制则2） |
+| **合计** | **15 calls（最理想）** |
+
+这 15 次调用已经能覆盖星级逆向研究最重要的：
+
+- 全市场估值；
+- 全部估值口径；
+- 历史估值位置；
+- 市值；
+- 成交/换手；
+- 指数融资融券；
+- 北向资金；
+- 指数相关场内基金数据；
+- 盈利/盈利增长；
+- 财务质量；
+- 全期限国债；
+- Buffett 指标所需 GDP；
+- 投资者开户；
+- 全市场融资融券状态。
+
+### 10.11 代码层面必须实现的额度保护
+
+后续抓取脚本必须具备：
+
+```text
+1. raw response cache
+2. request fingerprint
+3. skip-if-cached
+4. atomic write
+5. retry only on transport/server failure
+6. no retry on parameter/quota error
+7. FULL metrics first, split only after explicit field-limit failure
+8. manifest records requested fields and date window
+9. incremental update only fetches new dates
+10. never refetch a completed historical window unless --force
+```
+
+这样后续日常更新只需要抓“上次最后日期之后”的增量，不会重复浪费历史额度。
