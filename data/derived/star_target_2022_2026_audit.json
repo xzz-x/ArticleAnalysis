@@ -1,0 +1,64 @@
+{
+  "output": "data\\derived\\star_target_2022_2026_unified.csv",
+  "rowCount": 1129,
+  "firstDate": "2022-01-04",
+  "lastDate": "2026-08-31",
+  "duplicateDates": 0,
+  "byYearStatus": {
+    "2022": {
+      "approx": 5,
+      "exact": 217,
+      "range": 20,
+      "threshold": 0
+    },
+    "2023": {
+      "approx": 3,
+      "exact": 209,
+      "range": 30,
+      "threshold": 0
+    },
+    "2024": {
+      "approx": 6,
+      "exact": 207,
+      "range": 29,
+      "threshold": 0
+    },
+    "2025": {
+      "approx": 0,
+      "exact": 236,
+      "range": 6,
+      "threshold": 1
+    },
+    "2026": {
+      "approx": 0,
+      "exact": 160,
+      "range": 0,
+      "threshold": 0
+    }
+  },
+  "bySourcePriority": {
+    "historic_verified_annual": 726,
+    "direct_article_evidence": 395,
+    "direct_article_interval_or_threshold": 7,
+    "legacy_only_gap_fill": 1
+  },
+  "trainableRows": 1128,
+  "thresholdOnlyRows": 1,
+  "marketClosedExclusions": 6,
+  "legacyOnlyGapFills": [
+    {
+      "date": "2025-08-26",
+      "star": 4.2,
+      "evidence_confidence": 0.7,
+      "review_status": "needs_direct_evidence_audit"
+    }
+  ],
+  "2025SourceConflictCount": 81,
+  "sourcePolicy": [
+    "2022-2024: verified annual files",
+    "2025-2026: direct article evidence overrides the legacy annual file",
+    "review intervals remain intervals; threshold-only evidence is not trainable",
+    "market-closed articles are excluded",
+    "legacy annual data fills only dates absent from both direct evidence and review queue"
+  ]
+}

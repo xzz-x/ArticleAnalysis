@@ -1,0 +1,145 @@
+{
+  "selectionRule": "lowest mean exact MAE on 2023 and 2024 expanding-window validation",
+  "selectedSpecification": {
+    "stockCode": "1000002",
+    "indexName": "A股全指",
+    "weighting": "avg",
+    "buffettColumn": "buffett_mc_om_to_gdp",
+    "pbWindowYears": 10,
+    "features": [
+      "buffett_mc_om_to_gdp",
+      "equity_bond_ratio_avg",
+      "pb_avg_pct_10y_local"
+    ],
+    "directions": [
+      -1,
+      1,
+      -1
+    ],
+    "preHoldoutCvExactMae": 0.08468606003205331
+  },
+  "holdoutMetrics": [
+    {
+      "model": "baseline_log_close",
+      "stockCode": "1000002",
+      "index_name": "A股全指",
+      "train_start": 2022,
+      "train_end": 2024,
+      "holdout_start": 2025,
+      "holdout_end": 2026,
+      "n": 402,
+      "trainable_n": 402,
+      "exact_n": 396,
+      "interval_mae": 0.0445043725,
+      "weighted_interval_mae": 0.0449036729,
+      "interval_hit_rate": 0.0124378109,
+      "exact_mae": 0.045178386,
+      "exact_rmse": 0.0544781226,
+      "exact_within_0_1": 0.952020202,
+      "exact_regime_accuracy": 0.8813131313,
+      "coef::buffett_mc_om_to_gdp": null,
+      "coef::equity_bond_ratio_avg": null,
+      "coef::pb_avg_pct_10y_local": null,
+      "coef::log_close": -4.1657490694
+    },
+    {
+      "model": "core_locked_cv",
+      "stockCode": "1000002",
+      "index_name": "A股全指",
+      "train_start": 2022,
+      "train_end": 2024,
+      "holdout_start": 2025,
+      "holdout_end": 2026,
+      "n": 402,
+      "trainable_n": 402,
+      "exact_n": 396,
+      "interval_mae": 0.1606097858,
+      "weighted_interval_mae": 0.1616947876,
+      "interval_hit_rate": 0.0074626866,
+      "exact_mae": 0.1624947843,
+      "exact_rmse": 0.1836677634,
+      "exact_within_0_1": 0.303030303,
+      "exact_regime_accuracy": 0.6944444444,
+      "coef::buffett_mc_om_to_gdp": -5.6530519319,
+      "coef::equity_bond_ratio_avg": 0.0,
+      "coef::pb_avg_pct_10y_local": -0.721382592,
+      "coef::log_close": null
+    }
+  ],
+  "holdoutMetricsByYear": [
+    {
+      "model": "baseline_log_close",
+      "year": 2025,
+      "n": 242,
+      "trainable_n": 242,
+      "exact_n": 236,
+      "interval_mae": 0.042241741707482953,
+      "weighted_interval_mae": 0.04287290725234495,
+      "interval_hit_rate": 0.02066115702479339,
+      "exact_mae": 0.04331518902675258,
+      "exact_rmse": 0.05233654231400006,
+      "exact_within_0_1": 0.9703389830508474,
+      "exact_regime_accuracy": 0.8220338983050848
+    },
+    {
+      "model": "baseline_log_close",
+      "year": 2026,
+      "n": 160,
+      "trainable_n": 160,
+      "exact_n": 160,
+      "interval_mae": 0.04792660149635809,
+      "weighted_interval_mae": 0.047924936562767896,
+      "interval_hit_rate": 0.0,
+      "exact_mae": 0.04792660149635809,
+      "exact_rmse": 0.057491523897719804,
+      "exact_within_0_1": 0.925,
+      "exact_regime_accuracy": 0.96875
+    },
+    {
+      "model": "core_locked_cv",
+      "year": 2025,
+      "n": 242,
+      "trainable_n": 242,
+      "exact_n": 236,
+      "interval_mae": 0.171225626516899,
+      "weighted_interval_mae": 0.17322715229214394,
+      "interval_hit_rate": 0.012396694214876033,
+      "exact_mae": 0.17465848443016832,
+      "exact_rmse": 0.19491994293602408,
+      "exact_within_0_1": 0.25,
+      "exact_regime_accuracy": 0.6059322033898306
+    },
+    {
+      "model": "core_locked_cv",
+      "year": 2026,
+      "n": 160,
+      "trainable_n": 160,
+      "exact_n": 160,
+      "interval_mae": 0.14455332665032283,
+      "weighted_interval_mae": 0.14453755700500284,
+      "interval_hit_rate": 0.0,
+      "exact_mae": 0.14455332665032283,
+      "exact_rmse": 0.16568174461358007,
+      "exact_within_0_1": 0.38125,
+      "exact_regime_accuracy": 0.825
+    }
+  ],
+  "holdoutComparison": {
+    "verdict": "core_model_does_not_beat_price_baseline",
+    "coreExactMae": 0.1624947843170994,
+    "baselineExactMae": 0.04517838598416895,
+    "coreToBaselineMaeRatio": 3.596737262239504
+  },
+  "coefficientDirectionsSatisfied": {
+    "core_locked_cv": true,
+    "baseline_log_close": true
+  },
+  "candidateCount": 60,
+  "trainPeriod": "2022-01-01..2024-12-31",
+  "lockedHoldoutPeriod": "2025-01-01..2026-08-31",
+  "notes": [
+    "The threshold-only target has zero weight and is excluded before fitting and scoring.",
+    "Range targets use interval loss; exact metrics use only exact labels.",
+    "No 2025-2026 observation participates in model selection or fitting."
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "dailyPanel": "data\\features\\star_factor_daily.parquet",
+  "modelPanel": "data\\features\\star_model_panel_2022_2026.parquet",
+  "modelCsv": "data\\features\\star_model_panel_2022_2026.csv",
+  "dailyRows": 11636,
+  "dailyColumns": 333,
+  "modelRows": 2258,
+  "modelColumns": 333,
+  "dateRangeByIndex": {
+    "000985": {
+      "first": "2011-08-02",
+      "last": "2026-09-22",
+      "rows": 3680
+    },
+    "1000002": {
+      "first": "1994-01-03",
+      "last": "2026-09-22",
+      "rows": 7956
+    }
+  },
+  "targetRowsByIndex": {
+    "000985": 1129,
+    "1000002": 1129
+  },
+  "criticalCoverageByIndex": {
+    "000985": {
+      "buffett_mc_to_gdp": 1129,
+      "buffett_mc_om_to_gdp": 1129,
+      "equity_bond_ratio_mcw": 1129,
+      "pb_mcw_pct_10y_local": 1129,
+      "fin_q_ps_np_ttm_y2y": 1129,
+      "fin_q_m_roe_ttm": 1129,
+      "market_financingBalance": 1129,
+      "investor_ni": 1129
+    },
+    "1000002": {
+      "buffett_mc_to_gdp": 1129,
+      "buffett_mc_om_to_gdp": 1129,
+      "equity_bond_ratio_mcw": 1129,
+      "pb_mcw_pct_10y_local": 1129,
+      "fin_q_ps_np_ttm_y2y": 1129,
+      "fin_q_m_roe_ttm": 1129,
+      "market_financingBalance": 1129,
+      "investor_ni": 1129
+    }
+  },
+  "futureDataViolations": {
+    "debt": 0,
+    "gdp": 0,
+    "investor": 0,
+    "margin": 0,
+    "financial": 0
+  },
+  "availabilityPolicy": {
+    "indexFundamental": "same trading date; target articles are published after market close",
+    "nationalDebt": "latest source date on or before target date",
+    "margin": "latest source date on or before target date",
+    "financials": "actual LiXinger reportDate",
+    "gdp": "period end plus 45 calendar days because API does not provide publication timestamp",
+    "investorWeekly": "period end plus 7 calendar days",
+    "investorMonthly": "period end plus 20 calendar days"
+  },
+  "localPercentileDefinition": "calendar windows; mid-rank empirical percentile including current observation"
+}
