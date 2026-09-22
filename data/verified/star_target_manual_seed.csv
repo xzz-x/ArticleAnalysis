@@ -1,0 +1,6 @@
+date,star,market,source_type,realtime_or_backfilled,confidence,drive_file_id,drive_url,evidence,notes
+2025-02-19,4.9,A股,公众号当日估值文章,realtime,1.00,1efHhNEj-gZ5xltGmGzUwS3EVa_e2rrPO,https://drive.google.com/file/d/1efHhNEj-gZ5xltGmGzUwS3EVa_e2rrPO/view?usp=drivesdk,"今天大盘整体上涨，截止到收盘，又回到4.9星。","正文明确给出当日收盘星级"
+2025-07-29,4.6,A股,公众号当日估值文章,realtime,0.99,1UZwNzZpharVs8saQxgwmUPGns9-BwHkn,https://drive.google.com/file/d/1UZwNzZpharVs8saQxgwmUPGns9-BwHkn/view?usp=drivesdk,"og:title：［7月29日］指数估值数据(回到4.6星；…)","HTML元数据明确给出当日星级；后续全量流程应继续用正文交叉验证"
+2025-09-30,4.1,A股,公众号当日估值文章,realtime,1.00,15tz95ooTiDoR7hQ1t_zhKRMO6Yxyt3ek,https://drive.google.com/file/d/15tz95ooTiDoR7hQ1t_zhKRMO6Yxyt3ek/view?usp=drivesdk,"今天大盘整体上涨，截止到收盘，回到4.1星。","正文明确给出当日收盘星级"
+2026-01-06,3.9,A股,公众号当日估值文章,realtime,1.00,1PywA8IMBorWQeIFoHfp1vLNmReZB11Mx,https://drive.google.com/file/d/1PywA8IMBorWQeIFoHfp1vLNmReZB11Mx/view?usp=drivesdk,"今天大盘整体上涨，截止到收盘，大盘回到3.9星。","标题只写3星级，正文给出精确3.9；应以正文为准"
+2026-02-25,3.7,A股,公众号当日估值文章,realtime,1.00,1sC7jDez-EFTIkj9HY-kKbUAaUz18UCNy,https://drive.google.com/file/d/1sC7jDez-EFTIkj9HY-kKbUAaUz18UCNy/view?usp=drivesdk,"截止到收盘，达到3.7星。","正文明确给出当日收盘星级"
