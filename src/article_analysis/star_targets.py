@@ -35,6 +35,9 @@ CLOSE_STAR_RE = re.compile(
 TODAY_MARKET_STAR_RE = re.compile(
     r"(?:今天|今日)(?:大盘|A股|市场)[^。！？\n]{0,140}?" + PRECISE_STAR_TOKEN
 )
+CURRENT_STATE_STAR_RE = re.compile(
+    r"(?:目前|当前)(?:还是|仍然|仍|依然)?(?:在|处于)\s*" + PRECISE_STAR_TOKEN
+)
 OPENING_STATE_STAR_RE = re.compile(
     r"(?:还在|回到|回到了|重回|达到|涨到|上涨到|摸到)\s*" + PRECISE_STAR_TOKEN
 )
@@ -160,6 +163,15 @@ NONCURRENT_EVIDENCE_CUES = (
     "才回到",
     "才会回到",
     "收盘基础上",
+    "没到",
+    "没有到",
+    "未到",
+    "未回到",
+    "没有彻底回到",
+    "出现过",
+    "两次",
+    "最低",
+    "最高",
 )
 INTRADAY_EVIDENCE_CUES = ("中午收盘", "午间收盘", "上午收盘", "盘中", "一度")
 YEAR_MENTION_RE = re.compile(r"20\d{2}年")
@@ -221,6 +233,7 @@ def extract_realtime_observation_from_article(
     patterns = (
         ("closing_statement", CLOSE_STAR_RE, 1.0),
         ("today_market_statement", TODAY_MARKET_STAR_RE, 0.995),
+        ("current_state_statement", CURRENT_STATE_STAR_RE, 0.992),
         ("opening_state_statement", OPENING_STATE_STAR_RE, 0.99),
     )
     for method, pattern, confidence in patterns:
