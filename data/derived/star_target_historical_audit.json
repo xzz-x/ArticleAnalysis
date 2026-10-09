@@ -1,0 +1,123 @@
+{
+  "requestedYears": [
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "corpusYearsPresent": [
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "corpusMissingYears": [
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "byYear": {
+    "2021": {
+      "uniqueArticles": 242,
+      "directDecimalExact": 86,
+      "reviewReasonCounts": {
+        "no_exact_text_evidence": 78,
+        "integer_regime_only": 75,
+        "near_threshold_only": 1,
+        "approximate_range": 2
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
+    },
+    "2022": {
+      "uniqueArticles": 246,
+      "directDecimalExact": 123,
+      "reviewReasonCounts": {
+        "approximate_range": 11,
+        "integer_regime_only": 78,
+        "no_exact_text_evidence": 31,
+        "market_closed_no_new_target": 2,
+        "near_threshold_only": 1
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 2,
+      "legacyDecimalConflicts": [
+        {
+          "date": "2022-09-27",
+          "direct": 5.1,
+          "legacy": 5,
+          "evidence": "截止到收盘，从5.1星级"
+        },
+        {
+          "date": "2022-04-07",
+          "direct": 4.5,
+          "legacy": 4.8,
+          "evidence": "今天大盘整体下跌，还是在4.5星级"
+        }
+      ]
+    },
+    "2023": {
+      "uniqueArticles": 245,
+      "directDecimalExact": 162,
+      "reviewReasonCounts": {
+        "no_exact_text_evidence": 14,
+        "approximate_range": 27,
+        "market_closed_no_new_target": 2,
+        "integer_regime_only": 40
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
+    },
+    "2024": {
+      "uniqueArticles": 236,
+      "directDecimalExact": 191,
+      "reviewReasonCounts": {
+        "approximate_range": 23,
+        "integer_regime_only": 11,
+        "no_exact_text_evidence": 9,
+        "market_closed_no_new_target": 2
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 2,
+      "legacyDecimalConflicts": [
+        {
+          "date": "2024-08-01",
+          "direct": 5.8,
+          "legacy": 5.7,
+          "evidence": "收盘，回到了5.8星"
+        },
+        {
+          "date": "2024-02-02",
+          "direct": 5.8,
+          "legacy": 5.9,
+          "evidence": "摸到5.8星级"
+        }
+      ]
+    }
+  },
+  "exactTargets": 562,
+  "reviewRows": 407,
+  "legacyDecimalConflictCount": 4,
+  "policy": [
+    "Only decimal/half-star current evidence is treated as historical exact; integer wording such as 5星级 is kept as a coarse regime.",
+    "Historical, hypothetical, negated and intraday mentions are rejected.",
+    "Missing 2012-2020 corpus is reported rather than guessed."
+  ]
+}
