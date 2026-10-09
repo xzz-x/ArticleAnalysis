@@ -7,7 +7,7 @@
 ## 分支约定
 
 - `main`：只保留稳定、可复用的项目基线。
-- 当前实验分支：`research/screw-star-replica`。
+- 稳定基线以 `main` 为准；研究改动从 `main` 新建短期分支并通过 PR 验证，旧 `research/screw-star-replica` 不再作为最新研究基线。
 - 原始大体量文章语料不提交 Git；当前计划以 Google Drive 作为 canonical corpus storage。
 - GitHub 只保存代码、配置、manifest、提取后的结构化 Target 与研究结果。
 
@@ -166,6 +166,23 @@ notes
 
 最终 Replica 模型优先使用当时实时发布的 `realtime` 星级。
 
+### 恢复历史 realtime Target
+
+```bash
+python research/build_historical_realtime_target.py
+```
+
+历史流水线与 2025–2026 使用同一套“当前/收盘证据优先”的原则，并额外针对早期文章做保守处理：
+历史回顾、假设句、阈值描述、盘中值和明确的旧日期不会成为 exact Target；仅写“5星级”等整数
+regime 而没有小数精度时，也不会强行解释为精确的 5.0。输出为
+`data/derived/star_target_historical_direct.csv`、`star_target_historical_review_queue.csv`
+和审计文件。
+
+当前 Google Drive canonical corpus 中可用于这一阶段的历史年份为 **2021–2024**；
+**2012–2020 语料目前缺失**，审计文件会明确记录为 corpus missing，不做插值或反推。
+2022–2024 进入统一 Target 前还会经过已验证 A 股交易日集合的 calendar gate，避免春节、清明、
+劳动节等假期文章中的参考星级被误当成新的日频 Target。
+
 ### 统一 2022–2026 Target
 
 ```bash
@@ -173,9 +190,15 @@ python research/build_unified_star_target.py
 ```
 
 输出 `data/derived/star_target_2022_2026_unified.csv`，保证每个日期最多一条记录，
-并保留 `star_low` / `star_high`、证据置信度与训练权重。2025–2026 优先采用带正文证据的
-新流水线结果；区间不会被旧年度表中的单点覆盖，休市文章进入 exclusions，只有阈值描述
-而没有数值区间的记录权重为零。来源冲突和合并规则记录在同目录的 audit/conflicts 文件中。
+并保留 `star_low` / `star_high`、证据置信度与训练权重。2022–2024 与 2025–2026 均优先采用
+可核验的公众号 direct evidence；旧年度表只填补 direct evidence/review queue 未覆盖的交易日。
+区间不会被旧年度表中的单点覆盖，休市文章进入 exclusions，只有阈值描述而没有数值区间的记录
+权重为零。来源冲突和合并规则记录在同目录的 audit/conflicts 文件中。
+
+截至本轮审计，统一 Target 仍为 **1129 个日期**（2022-01-04 至 2026-08-31），其中
+2022–2024 有 **472 条 historical direct exact evidence**、**62 条 direct interval/threshold**
+和 **192 条 verified annual fallback**；全样本共有 **1127 条可训练记录**。历史 direct
+小数证据与 legacy 年度表中已人工核验的已知冲突已清零。
 
 ### 构建 point-in-time 因子面板
 
@@ -214,9 +237,44 @@ python research/core_factor_validation.py
 因此不是单月异常。股债性价比系数在各训练窗口均被单调约束压至 0，当前未表现出
 稳定的独立解释力。
 
-当前结论是：核心三因子不能替代原星级规则。下一阶段应保留指数点位基线，把基本面
-和市场因子用于解释其残差。验证流程已检查因子方向、留出期隔离和 point-in-time 日期，
-项目自动化测试共 30 项通过。
+当前结论是：核心三因子不能替代原星级规则。验证流程已检查因子方向、留出期隔离和
+point-in-time 日期。
+
+### 动态点位基线与残差验证（P1）
+
+```bash
+python research/dynamic_price_residual_analysis.py
+```
+
+P1 固定使用 A股全指，先以 2022–2024 拟合 `Star ~ log(index price)`，再把 PB 百分位、
+股债性价比、巴菲特指标、盈利增长、ROE、成交/换手和融资等变量分别作为单一增量因子。
+因子只能依据 2023/2024 expanding-window validation 进入模型；**2025–2026 完全锁定为 holdout**。
+脚本运行时会重新读取最新统一 Target，而不是使用 factor panel 中可能过期的嵌入式标签。
+
+最新结果：
+
+| 项目 | 结果 |
+| --- | ---: |
+| Price-only 2025–2026 exact MAE | **0.0460** |
+| Price-only 误差 ≤ 0.1 | **95.20%** |
+| Price-only 星级整数区间准确率 | **88.38%** |
+| 预留期最佳 residual 因子 | 10 年 PB 百分位 |
+| Price + PB 的 holdout exact MAE | **0.1072** |
+| 星级变动日方向与指数涨跌反向一致率 | **97.86%** |
+| 星级变化模型 holdout MAE | **0.0333 星** |
+
+10 年 PB 百分位在 2023–2024 预留前验证中曾将 exact MAE 从 0.1086 改善至 0.0955，
+但在真正锁定的 2025–2026 holdout 中明显失效，因此**不能作为稳定残差修正项**。
+真正的慢基本面候选中，表现最好的流通市值/GDP 在预留前阶段已弱于 price-only
+（0.1113 vs 0.1086），所以 slow fundamental anchor 本轮不进入 holdout。
+
+当前证据更支持：**短期星级更新主要由市场价格/点位驱动；已测试的估值、情绪和慢基本面变量
+尚未证明具有稳定、跨期的增量解释力。** 年度 implied price anchor 也没有表现出简单单调漂移，
+因此暂不能把盈利/GDP 写成固定的长期重定标公式。下一步应重点调查 price-change residual
+最大的日期，并在获得 2012–2020 旧语料后再检验跨完整牛熊周期的 anchor drift。
+
+当前自动化测试为 **42 项通过**；P0/P1 CI 会先重建统一 Target，再运行测试和锁定 P1 分析。
+
 
 ## 与 xzz-x/ETF 的关系
 
@@ -245,8 +303,11 @@ python research/download_lixinger_index_fundamental.py
 `data/raw/lixinger/index_fundamental/`；跨窗口合并后的 Parquet 写入
 `data/derived/lixinger/index_fundamental/`。两类大文件均由 `.gitignore` 排除。
 
-下载器会优先以单个 65 字段包请求每个十年窗口，命中缓存时不会重复调用接口；
-只有接口明确拒绝完整字段包时才拆为 45 + 20 两个大包。
+首次历史下载仍优先以单个 65 字段包请求每个最长十年窗口；后续更新会先读取本地
+consolidated Parquet 的最后日期，只请求**尚未存在的增量日期**，不再因为当天 `endDate`
+变化而重新下载整个活跃十年窗口。65 字段请求只有在错误明确指向字段数/响应大小限制时才拆为
+45 + 20 两个大包；quota、鉴权或其他参数错误会直接停止，避免额外消耗 API 调用次数。
+拆包结果按日期/指数逐列保留最新非空值，防止 `drop_duplicates` 丢失另一数据包独有字段。
 
 其余星级核心因子可通过以下命令下载：
 
@@ -261,7 +322,8 @@ python research/download_lixinger_star_factors.py
 
 ## 下一步
 
-1. 对 review queue 中剩余 7 个交易日继续寻找正文、HTML 元数据或其他可核验来源；5 星附近的饱和图形不强行读数；
-2. 将相同 pipeline 扩展到 2012–2024 历史语料；
-3. 建立 FTS 搜索库并抽样审计低置信度候选；
-4. 建立“指数点位基线 + 基本面残差修正”模型，检验基本面因子的增量解释力。
+1. 优先补齐 canonical corpus 中缺失的 **2012–2020** 历史文章，再用同一 realtime pipeline 恢复跨完整牛熊周期 Target；
+2. 对 2025–2026 review queue 剩余交易日继续寻找正文、HTML 元数据或其他可核验证据，5 星附近的饱和图形不强行读数；
+3. 逐日审计 P1 中 price-change residual 最大的日期，优先核验 **2025-08-26**（当前仍是 legacy-only gap fill）；
+4. 在更长历史 Target 上检验 price anchor 是否存在结构性变点/缓慢漂移，再决定是否引入盈利、GDP 或利率驱动的动态重定标；
+5. 只有在预留前验证和跨周期 holdout 均有稳定增益时，才接受新的 residual/qualitative factor。
