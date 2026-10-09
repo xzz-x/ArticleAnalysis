@@ -226,7 +226,7 @@ def test_historical_closing_transition_uses_final_star():
     )
     assert row is not None
     assert row.star == 5.0
-    assert row.evidence_method == "closing_transition_statement"
+    assert row.evidence_method == "closing_statement"
 
 
 def test_historical_fine_current_value_overrides_rounded_regime():
