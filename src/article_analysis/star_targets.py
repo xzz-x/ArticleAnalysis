@@ -162,16 +162,16 @@ NONCURRENT_EVIDENCE_CUES = (
     "收盘基础上",
 )
 INTRADAY_EVIDENCE_CUES = ("中午收盘", "午间收盘", "上午收盘", "盘中", "一度")
-YEAR_MENTION_RE = re.compile(r"20\\d{2}年")
+YEAR_MENTION_RE = re.compile(r"20\d{2}年")
 
 
 def _sentence_around(text: str, start: int, end: int) -> str:
     """Return the sentence containing a candidate realtime star mention."""
-    left = max(text.rfind(mark, 0, start) for mark in ("。", "！", "？", "\\n")) + 1
-    right_candidates = [text.find(mark, end) for mark in ("。", "！", "？", "\\n")]
+    left = max(text.rfind(mark, 0, start) for mark in ("。", "！", "？", "\n")) + 1
+    right_candidates = [text.find(mark, end) for mark in ("。", "！", "？", "\n")]
     right_candidates = [value for value in right_candidates if value >= 0]
     right = min(right_candidates) if right_candidates else len(text)
-    return re.sub(r"\\s+", " ", text[left:right]).strip()
+    return re.sub(r"\s+", " ", text[left:right]).strip()
 
 
 def _realtime_match_is_valid(text: str, match: re.Match[str], method: str) -> bool:
