@@ -211,3 +211,62 @@ def test_historical_year_reference_is_rejected():
     )
     assert row is not None
     assert row.star == 5.8
+
+
+
+def test_historical_closing_transition_uses_final_star():
+    row = extract_realtime_observation_from_article(
+        title="［9月27日］指数估值数据",
+        publish_date="2022-09-27",
+        text=(
+            "# ［9月27日］指数估值数据\n"
+            "今天上午大盘波动不大，不过午后市场突然上涨。"
+            "截止到收盘，从5.1星级回到了5星级。"
+        ),
+    )
+    assert row is not None
+    assert row.star == 5.0
+    assert row.evidence_method == "closing_transition_statement"
+
+
+def test_historical_fine_current_value_overrides_rounded_regime():
+    row = extract_realtime_observation_from_article(
+        title="［4月7日］指数估值数据",
+        publish_date="2022-04-07",
+        text=(
+            "# ［4月7日］指数估值数据\n"
+            "今天大盘整体下跌，还是在4.5星级。"
+            "如果细一些计算，目前算是4.8了。"
+        ),
+    )
+    assert row is not None
+    assert row.star == 4.8
+    assert row.evidence_method == "fine_current_statement"
+
+
+def test_historical_prior_month_day_close_is_rejected():
+    row = extract_realtime_observation_from_article(
+        title="［8月1日］指数估值数据",
+        publish_date="2024-08-01",
+        text=(
+            "# ［8月1日］指数估值数据\n"
+            "今天大盘整体下跌，截止到收盘，还在5.7星。"
+            "其中7月24、25日两天收盘，回到了5.8星。"
+        ),
+    )
+    assert row is not None
+    assert row.star == 5.7
+
+
+def test_historical_all_day_star_can_use_mo_dao_le_wording():
+    row = extract_realtime_observation_from_article(
+        title="［2月2日］指数估值数据",
+        publish_date="2024-02-02",
+        text=(
+            "# ［2月2日］指数估值数据\n"
+            "今天大盘下午2点半附近一度下跌4.9%。"
+            "到2点半之后反弹，全天中证全指下跌2.37%，也摸到了5.9星级，距离5.8星不远。"
+        ),
+    )
+    assert row is not None
+    assert row.star == 5.9
