@@ -15,6 +15,12 @@ from typing import Any
 
 import pandas as pd
 
+from research.lixinger_incremental import (
+    coalesce_latest,
+    is_request_size_or_field_limit_error,
+    missing_windows,
+)
+
 
 REPO = Path(__file__).resolve().parents[1]
 RAW_ROOT = REPO / "data" / "raw" / "lixinger"
@@ -115,23 +121,31 @@ def fetch_cached(
 
 
 def consolidate(dataset: str, raw_paths: list[Path], key_columns: list[str]) -> Path:
+    output_dir = DERIVED_ROOT / dataset
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output = output_dir / f"{dataset}.parquet"
+
     frames: list[pd.DataFrame] = []
+    if output.exists():
+        frames.append(pd.read_parquet(output))
     for path in raw_paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
         if payload.get("data"):
             frames.append(pd.json_normalize(payload["data"]))
     if not frames:
-        raise RuntimeError(f"{dataset}: API returned no rows")
+        raise RuntimeError(f"{dataset}: no local or downloaded rows")
 
-    df = pd.concat(frames, ignore_index=True, sort=False)
-    if "date" not in df:
-        raise RuntimeError(f"{dataset}: API response does not contain date")
-    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_convert("Asia/Shanghai").dt.date
-    keys = [column for column in key_columns if column in df]
-    df = df.sort_values(keys).drop_duplicates(keys, keep="last")
-    output_dir = DERIVED_ROOT / dataset
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output = output_dir / f"{dataset}.parquet"
+    normalized: list[pd.DataFrame] = []
+    for frame in frames:
+        current = frame.copy()
+        if "date" not in current:
+            raise RuntimeError(f"{dataset}: API response does not contain date")
+        current["date"] = pd.to_datetime(current["date"], utc=True).dt.tz_convert("Asia/Shanghai").dt.date
+        if "stockCode" in current:
+            current["stockCode"] = current["stockCode"].astype(str).str.zfill(6)
+        normalized.append(current)
+    keys = [column for column in key_columns if column in normalized[-1]]
+    df = coalesce_latest(normalized, keys)
     temp = output.with_suffix(".parquet.tmp")
     df.to_parquet(temp, index=False)
     os.replace(temp, output)
@@ -193,6 +207,17 @@ FINANCIAL_INDICES = (FinancialIndex("1000002", 1994), FinancialIndex("000985", 2
 
 
 def download_macro(dataset: str, endpoint: str, metrics: list[str], token: str, end: date, force: bool) -> None:
+    output = DERIVED_ROOT / dataset / f"{dataset}.parquet"
+    request_windows = missing_windows(
+        output,
+        first_date=date(1994, 1, 1),
+        end_date=end,
+        force=force,
+    )
+    if not request_windows:
+        print(f"up to date: {dataset} through {end}")
+        return
+
     raw_paths = [
         fetch_cached(
             dataset=dataset,
@@ -201,7 +226,7 @@ def download_macro(dataset: str, endpoint: str, metrics: list[str], token: str, 
             token=token,
             force=force,
         )
-        for start, finish in windows(1994, end)
+        for start, finish in request_windows
     ]
     consolidate(dataset, raw_paths, ["date", "areaCode"])
 
@@ -209,8 +234,17 @@ def download_macro(dataset: str, endpoint: str, metrics: list[str], token: str, 
 def download_financials(token: str, end: date, force: bool) -> None:
     raw_paths: list[Path] = []
     endpoint = "/cn/index/fs/hybrid"
+    output = DERIVED_ROOT / "index_financials" / "index_financials.parquet"
     for index in FINANCIAL_INDICES:
-        for start, finish in windows(index.start_year, end):
+        request_windows = missing_windows(
+            output,
+            first_date=date(index.start_year, 1, 1),
+            end_date=end,
+            force=force,
+            key="stockCode",
+            value=index.stock_code,
+        )
+        for start, finish in request_windows:
             raw_paths.append(
                 fetch_cached(
                     dataset="index_financials",
@@ -225,33 +259,54 @@ def download_financials(token: str, end: date, force: bool) -> None:
                     force=force,
                 )
             )
+    if not raw_paths:
+        print(f"up to date: index_financials through {end}")
+        return
     consolidate("index_financials", raw_paths, ["date", "stockCode"])
 
 
 def download_margin(token: str, end: date, force: bool) -> None:
     endpoint = "/cn/company/market-data/margin-trading-and-securities-lending"
-    try:
-        raw_paths = [
-            fetch_cached(
-                dataset="margin",
-                endpoint=endpoint,
-                payload={"startDate": "1994-01-01", "endDate": end.isoformat()},
-                token=token,
-                force=force,
+    output = DERIVED_ROOT / "margin" / "margin.parquet"
+    request_windows = missing_windows(
+        output,
+        first_date=date(1994, 1, 1),
+        end_date=end,
+        force=force,
+    )
+    if not request_windows:
+        print(f"up to date: margin through {end}")
+        return
+
+    raw_paths: list[Path] = []
+    for start_date, end_date in request_windows:
+        payload = {"startDate": start_date, "endDate": end_date}
+        try:
+            raw_paths.append(
+                fetch_cached(
+                    dataset="margin",
+                    endpoint=endpoint,
+                    payload=payload,
+                    token=token,
+                    force=force,
+                )
             )
-        ]
-    except (LixingerApiError, RuntimeError) as exc:
-        print(f"full margin history failed; retrying in ten-year windows: {exc}")
-        raw_paths = [
-            fetch_cached(
-                dataset="margin",
-                endpoint=endpoint,
-                payload={"startDate": start, "endDate": finish},
-                token=token,
-                force=force,
-            )
-            for start, finish in windows(1994, end)
-        ]
+        except LixingerApiError as exc:
+            if not is_request_size_or_field_limit_error(exc):
+                raise
+            # This path is mainly for a first historical load. Incremental updates
+            # normally contain only a few new days and stay in one request.
+            for start, finish in windows(int(start_date[:4]), date.fromisoformat(end_date)):
+                bounded_start = max(date.fromisoformat(start), date.fromisoformat(start_date)).isoformat()
+                raw_paths.append(
+                    fetch_cached(
+                        dataset="margin",
+                        endpoint=endpoint,
+                        payload={"startDate": bounded_start, "endDate": finish},
+                        token=token,
+                        force=force,
+                    )
+                )
     consolidate("margin", raw_paths, ["date"])
 
 
