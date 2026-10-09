@@ -33,7 +33,7 @@ CANDIDATES = {
     "investor_nni_w": "market_sentiment",
     "investor_nni_m": "market_sentiment",
 }
-SLOW_CATEGORIES = {"slow_fundamental", "valuation", "valuation_rate"}
+SLOW_CATEGORIES = {"slow_fundamental"}
 
 
 def weighted_lstsq(design: np.ndarray, y: np.ndarray, weights: np.ndarray) -> np.ndarray:
@@ -317,7 +317,19 @@ def change_day_analysis(panel: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, ob
             .to_dict(orient="records")
         ),
     }
-    return holdout, summary
+    output_columns = [
+        "date",
+        "previous_date",
+        "gap_days",
+        "target_target_mid",
+        "star_change",
+        "cp",
+        "log_price_change",
+        "predicted_star_change_from_price",
+        "change_residual",
+        "abs_change_residual",
+    ]
+    return holdout[output_columns].copy(), summary
 
 
 def main() -> None:
@@ -360,6 +372,9 @@ def main() -> None:
             "logPriceCoefficient": float(price_fit[1][0]),
             "holdoutExactMae": price_mae,
         },
+        "preHoldoutTopCandidates": json.loads(
+            screen.head(6).to_json(orient="records")
+        ),
         "selectedResidualFeature": residual_feature,
         "selectedSlowAnchorFeature": slow_feature,
         "residualHoldoutExactMae": residual_mae,
@@ -372,6 +387,20 @@ def main() -> None:
         ),
         "impliedPriceAnchorByYear": implied_anchor_by_year(panel, price_fit),
         "starChangeAnalysis": change_summary,
+        "residualHoldoutVerdict": (
+            "improves_price_baseline"
+            if residual_mae is not None and residual_mae < price_mae
+            else "does_not_improve_price_baseline"
+        ),
+        "slowAnchorHoldoutVerdict": (
+            "not_selected_pre_holdout"
+            if slow_feature is None
+            else (
+                "improves_price_baseline"
+                if slow_mae is not None and slow_mae < price_mae
+                else "does_not_improve_price_baseline"
+            )
+        ),
         "interpretationRule": (
             "A residual/slow factor is considered useful only if it was selected on "
             "2023-2024 expanding validation and still lowers exact MAE on the locked 2025-2026 holdout."
