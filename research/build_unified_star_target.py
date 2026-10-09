@@ -115,8 +115,15 @@ def load_historic_year(year: int) -> pd.DataFrame:
     return _finalize(result)
 
 
-def load_historical_article_targets() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Load optional 2022-2024 direct article evidence produced by the historical pipeline."""
+def load_historical_article_targets(
+    valid_trading_dates: set[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load optional 2022-2024 direct article evidence produced by the historical pipeline.
+
+    The verified annual files are also the market-calendar authority for these
+    years. Holiday/weekend articles may discuss a reference star state but must
+    not create a new daily realtime Target.
+    """
     exact_path = DERIVED / "star_target_historical_direct.csv"
     review_path = DERIVED / "star_target_historical_review_queue.csv"
     empty = pd.DataFrame(columns=OUTPUT_COLUMNS)
@@ -130,6 +137,10 @@ def load_historical_article_targets() -> tuple[pd.DataFrame, pd.DataFrame, pd.Da
     exact_source = exact_source[
         exact_source["date"].astype(str).str[:4].isin(["2022", "2023", "2024"])
     ].copy()
+    if valid_trading_dates is not None:
+        exact_source = exact_source[
+            exact_source["date"].astype(str).isin(valid_trading_dates)
+        ].copy()
     confidence = _number(exact_source["confidence"]).fillna(0.985)
     exact = pd.DataFrame(
         {
@@ -162,6 +173,10 @@ def load_historical_article_targets() -> tuple[pd.DataFrame, pd.DataFrame, pd.Da
     review_source = review_source[
         review_source["date"].astype(str).str[:4].isin(["2022", "2023", "2024"])
     ].copy()
+    if valid_trading_dates is not None:
+        review_source = review_source[
+            review_source["date"].astype(str).isin(valid_trading_dates)
+        ].copy()
     closed = review_source[review_source["reason"] == "market_closed_no_new_target"].copy()
     usable = review_source[
         review_source["reason"].isin(["approximate_range", "near_threshold_only"])
@@ -387,7 +402,10 @@ def records(df: pd.DataFrame) -> list[dict[str, Any]]:
 
 def main() -> None:
     historic_annual = pd.concat([load_historic_year(year) for year in (2022, 2023, 2024)], ignore_index=True)
-    historic_direct, historic_review, historic_exclusions = load_historical_article_targets()
+    valid_historic_trading_dates = set(historic_annual["date"].astype(str))
+    historic_direct, historic_review, historic_exclusions = load_historical_article_targets(
+        valid_historic_trading_dates
+    )
     historic = apply_historical_article_priority(
         historic_annual,
         historic_direct,
@@ -429,6 +447,7 @@ def main() -> None:
         "marketClosedExclusions": int(len(exclusions)),
         "historicalDirectExactRows": int(len(historic_direct)),
         "historicalDirectReviewRows": int(len(historic_review)),
+        "historicalCalendarPolicy": "2022-2024 direct article evidence is admitted only on verified A-share trading dates",
         "historicalAnnualFallbackRows": int((historic["source_priority"] == "historic_verified_annual").sum()),
         "legacyOnlyGapFills": records(legacy[["date", "star", "evidence_confidence", "review_status"]]),
         "2025SourceConflictCount": int(len(conflicts)),
