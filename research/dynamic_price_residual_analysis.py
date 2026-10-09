@@ -10,6 +10,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 PANEL_CSV = REPO / "data" / "features" / "star_model_panel_2022_2026.csv"
+TARGET_CSV = REPO / "data" / "derived" / "star_target_2022_2026_unified.csv"
 DERIVED = REPO / "data" / "derived"
 
 FACTOR_OUTPUT = DERIVED / "price_residual_factor_screen.csv"
@@ -105,8 +106,20 @@ def score(frame: pd.DataFrame, prediction: np.ndarray) -> dict[str, float | int]
 def prepare_panel() -> pd.DataFrame:
     panel = pd.read_csv(PANEL_CSV, low_memory=False)
     panel["stockCode"] = panel["stockCode"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
+    panel["date"] = pd.to_datetime(panel["date"]).dt.normalize()
+
+    # The committed factor panel can outlive a Target refresh.  Always replace
+    # embedded target_* columns with the freshly unified Target so P1 is tested
+    # against the same labels produced by build_unified_star_target.py.
+    target = pd.read_csv(TARGET_CSV)
+    target["date"] = pd.to_datetime(target["date"]).dt.normalize()
+    target = target.rename(
+        columns={column: f"target_{column}" for column in target.columns if column != "date"}
+    )
+    panel = panel.drop(columns=[column for column in panel.columns if column.startswith("target_")])
+    panel = panel.merge(target, on="date", how="inner", validate="many_to_one")
+
     panel = panel[panel["stockCode"] == INDEX_CODE].copy()
-    panel["date"] = pd.to_datetime(panel["date"])
     panel["year"] = panel["date"].dt.year
     panel["log_close"] = np.log(pd.to_numeric(panel["cp"], errors="coerce").where(lambda s: s > 0))
     numeric = [
@@ -176,6 +189,10 @@ def select_feature(screen: pd.DataFrame, categories: Iterable[str] | None = None
     if candidates.empty:
         return None
     best = candidates.sort_values(["cv_exact_mae", "cv_interval_mae"]).iloc[0]
+    # Do not force a residual factor into the locked holdout if it could not
+    # even improve the price baseline in pre-holdout expanding validation.
+    if float(best["cv_exact_mae_gain_vs_price"]) <= 0:
+        return None
     return str(best["feature"])
 
 
@@ -195,13 +212,9 @@ def holdout_evaluations(
     rows: list[dict[str, object]] = []
     prediction_frames: dict[str, pd.DataFrame] = {}
     fits: dict[str, tuple[float, np.ndarray]] = {}
-    seen: set[tuple[str | None]] = set()
-
     for name, feature in specs.items():
-        key = (feature,)
-        if name != "price_only" and key in seen:
+        if name != "price_only" and feature is None:
             continue
-        seen.add(key)
         metrics, fit, prediction = evaluate_model(train, holdout, feature)
         fits[name] = fit
         rows.append(
@@ -274,6 +287,7 @@ def change_day_analysis(panel: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, ob
     holdout["change_residual"] = (
         holdout["star_change"] - holdout["predicted_star_change_from_price"]
     )
+    holdout["abs_change_residual"] = holdout["change_residual"].abs()
     changed = holdout["star_change"].abs() >= 0.05
     directional = changed & (holdout["log_price_change"].abs() > 1e-12)
     expected_direction = (
@@ -296,8 +310,8 @@ def change_day_analysis(panel: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, ob
             float(expected_direction.mean()) if len(expected_direction) else float("nan")
         ),
         "largestResidualChangeDates": (
-            holdout.nlargest(10, "change_residual", keep="all")[
-                ["date", "star_change", "log_price_change", "change_residual"]
+            holdout.nlargest(10, "abs_change_residual", keep="all")[
+                ["date", "star_change", "log_price_change", "change_residual", "abs_change_residual"]
             ]
             .assign(date=lambda x: x["date"].dt.strftime("%Y-%m-%d"))
             .to_dict(orient="records")
