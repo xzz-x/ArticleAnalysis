@@ -179,9 +179,8 @@ def _realtime_match_is_valid(text: str, match: re.Match[str], method: str) -> bo
     # Only inspect text leading into the matched value.  A valid current sentence
     # can say "目前4.7星，距离4.8星不远"; looking at the whole sentence would
     # incorrectly reject the first, valid 4.7 observation.
-    evidence_prefix = re.sub(
-        r"\s+", " ", text[max(0, match.start() - 60) : match.end()]
-    ).strip()
+    left = max(text.rfind(mark, 0, match.start()) for mark in ("。", "！", "？", "\n")) + 1
+    evidence_prefix = re.sub(r"\s+", " ", text[left : match.end()]).strip()
     if any(cue in evidence_prefix for cue in NONCURRENT_EVIDENCE_CUES):
         return False
     if YEAR_MENTION_RE.search(evidence_prefix):
