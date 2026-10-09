@@ -185,7 +185,9 @@ NONCURRENT_EVIDENCE_CUES = (
 )
 INTRADAY_EVIDENCE_CUES = ("中午收盘", "午间收盘", "上午收盘", "盘中", "一度")
 YEAR_MENTION_RE = re.compile(r"20\d{2}年")
-MONTH_DAY_RE = re.compile(r"(?P<month>\d{1,2})月(?P<day>\d{1,2})日")
+MONTH_DAY_RE = re.compile(
+    r"(?P<month>\d{1,2})月(?P<day>\d{1,2})(?:[、,，~～\-]\d{1,2})?日"
+)
 
 
 def _sentence_around(text: str, start: int, end: int) -> str:
@@ -209,7 +211,12 @@ def _realtime_match_is_valid(
     # incorrectly reject the first, valid 4.7 observation.
     left = max(text.rfind(mark, 0, match.start()) for mark in ("。", "！", "？", "\n")) + 1
     evidence_prefix = re.sub(r"\s+", " ", text[left : match.end()]).strip()
-    if any(cue in evidence_prefix for cue in NONCURRENT_EVIDENCE_CUES):
+    cue_text = (
+        evidence_prefix.replace("如果细一些计算", "")
+        if method == "fine_current_statement"
+        else evidence_prefix
+    )
+    if any(cue in cue_text for cue in NONCURRENT_EVIDENCE_CUES):
         return False
     if YEAR_MENTION_RE.search(evidence_prefix):
         return False
@@ -259,7 +266,7 @@ def extract_realtime_observation_from_article(
     lines = (text or "").splitlines()
     opening = "\n".join(lines[1:])[:opening_chars] if lines else ""
     patterns = (
-        ("closing_transition_statement", CLOSE_TRANSITION_STAR_RE, 1.0),
+        ("closing_statement", CLOSE_TRANSITION_STAR_RE, 1.0),
         ("closing_statement", CLOSE_STAR_RE, 1.0),
         ("fine_current_statement", FINE_CURRENT_STAR_RE, 0.998),
         ("today_market_statement", TODAY_MARKET_STAR_RE, 0.995),
