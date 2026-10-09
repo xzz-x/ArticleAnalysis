@@ -120,6 +120,14 @@ def classify_review(opening: str) -> dict[str, object]:
     }
 
 
+def has_decimal_precision(star: float, evidence: str) -> bool:
+    """Historical integer wording such as '5星级' is usually a regime, not 5.0."""
+    if abs(float(star) - round(float(star))) > 1e-9:
+        return True
+    whole = int(round(float(star)))
+    return bool(re.search(rf"(?<!\d){whole}\.0\s*星", evidence or ""))
+
+
 def resolve_exact_rows(rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     if rows.empty:
         return rows, pd.DataFrame(columns=["date", "reason", "values", "article_ids"])
@@ -201,23 +209,41 @@ def main() -> None:
             publish_date=date_value,
         )
         if observation is not None:
-            exact_rows.append(
-                {
-                    "date": date_value,
-                    "star": observation.star,
-                    "market": "A股",
-                    "source_type": "公众号当日估值文章",
-                    "realtime_or_backfilled": "realtime",
-                    "article_id": article.article_id,
-                    "title": article.title,
-                    "source_url": getattr(article, "source_url", None),
-                    "confidence": observation.confidence,
-                    "evidence": observation.evidence,
-                    "evidence_method": observation.evidence_method,
-                    "review_status": "auto_high_confidence",
-                    "relative_path": article.relative_path,
-                }
-            )
+            if has_decimal_precision(observation.star, observation.evidence):
+                exact_rows.append(
+                    {
+                        "date": date_value,
+                        "star": observation.star,
+                        "market": "A股",
+                        "source_type": "公众号当日估值文章",
+                        "realtime_or_backfilled": "realtime",
+                        "article_id": article.article_id,
+                        "title": article.title,
+                        "source_url": getattr(article, "source_url", None),
+                        "confidence": observation.confidence,
+                        "evidence": observation.evidence,
+                        "evidence_method": observation.evidence_method,
+                        "review_status": "auto_high_confidence",
+                        "relative_path": article.relative_path,
+                    }
+                )
+            else:
+                review_rows.append(
+                    {
+                        "date": date_value,
+                        "market": "A股",
+                        "article_id": article.article_id,
+                        "title": article.title,
+                        "source_url": getattr(article, "source_url", None),
+                        "reason": "integer_regime_only",
+                        "range_low": None,
+                        "range_high": None,
+                        "reference_star": observation.star,
+                        "evidence": observation.evidence,
+                        "review_status": "coarse_integer_not_exact",
+                        "relative_path": article.relative_path,
+                    }
+                )
             continue
 
         lines = str(article.text or "").splitlines()
