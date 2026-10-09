@@ -278,35 +278,16 @@ def download_margin(token: str, end: date, force: bool) -> None:
         print(f"up to date: margin through {end}")
         return
 
-    raw_paths: list[Path] = []
-    for start_date, end_date in request_windows:
-        payload = {"startDate": start_date, "endDate": end_date}
-        try:
-            raw_paths.append(
-                fetch_cached(
-                    dataset="margin",
-                    endpoint=endpoint,
-                    payload=payload,
-                    token=token,
-                    force=force,
-                )
-            )
-        except LixingerApiError as exc:
-            if not is_request_size_or_field_limit_error(exc):
-                raise
-            # This path is mainly for a first historical load. Incremental updates
-            # normally contain only a few new days and stay in one request.
-            for start, finish in windows(int(start_date[:4]), date.fromisoformat(end_date)):
-                bounded_start = max(date.fromisoformat(start), date.fromisoformat(start_date)).isoformat()
-                raw_paths.append(
-                    fetch_cached(
-                        dataset="margin",
-                        endpoint=endpoint,
-                        payload={"startDate": bounded_start, "endDate": finish},
-                        token=token,
-                        force=force,
-                    )
-                )
+    raw_paths = [
+        fetch_cached(
+            dataset="margin",
+            endpoint=endpoint,
+            payload={"startDate": start_date, "endDate": end_date},
+            token=token,
+            force=force,
+        )
+        for start_date, end_date in request_windows
+    ]
     consolidate("margin", raw_paths, ["date"])
 
 
