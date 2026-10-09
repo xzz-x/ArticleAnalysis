@@ -15,6 +15,12 @@ from typing import Any
 
 import pandas as pd
 
+from research.lixinger_incremental import (
+    coalesce_latest,
+    is_request_size_or_field_limit_error,
+    missing_windows,
+)
+
 
 REPO = Path(__file__).resolve().parents[1]
 RAW_ROOT = REPO / "data" / "raw" / "lixinger" / "index_fundamental"
@@ -220,10 +226,11 @@ def download_window(
             )
         ]
     except LixingerApiError as exc:
-        # A 65-field request is expected to work. If the API enforces an
-        # undocumented field/response-size limit, preserve progress by using
-        # two large bundles rather than falling back to per-field requests.
-        print(f"core65 failed; retrying as core45 + checks20: {exc}")
+        # Do not burn two more API calls for quota/auth/parameter failures.
+        # Split only when the error actually indicates a field/response limit.
+        if not is_request_size_or_field_limit_error(exc):
+            raise
+        print(f"core65 hit a field/response limit; retrying as core45 + checks20: {exc}")
         return [
             download_request(
                 stock_code=stock_code,
@@ -247,7 +254,11 @@ def download_window(
 
 
 def consolidate(spec: IndexDownload, raw_paths: list[Path]) -> Path:
+    output = DERIVED_ROOT / f"{spec.stock_code}_{spec.name}_core65.parquet"
     frames: list[pd.DataFrame] = []
+    if output.exists():
+        frames.append(pd.read_parquet(output))
+
     for path in raw_paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
         rows = payload.get("data") or []
@@ -255,19 +266,23 @@ def consolidate(spec: IndexDownload, raw_paths: list[Path]) -> Path:
             frames.append(pd.json_normalize(rows))
 
     if not frames:
-        raise RuntimeError(f"No rows downloaded for {spec.stock_code} ({spec.name})")
+        raise RuntimeError(f"No local or downloaded rows for {spec.stock_code} ({spec.name})")
 
-    df = pd.concat(frames, ignore_index=True, sort=False)
-    if "date" not in df.columns:
-        raise RuntimeError(f"Downloaded data has no date column for {spec.stock_code}")
-    df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_convert("Asia/Shanghai").dt.date
-    df = df.sort_values("date").drop_duplicates(["date", "stockCode"], keep="last")
+    normalized: list[pd.DataFrame] = []
+    for frame in frames:
+        current = frame.copy()
+        if "date" not in current.columns:
+            raise RuntimeError(f"Downloaded data has no date column for {spec.stock_code}")
+        current["date"] = pd.to_datetime(current["date"], utc=True).dt.tz_convert("Asia/Shanghai").dt.date
+        current["stockCode"] = current["stockCode"].astype(str).str.zfill(6)
+        normalized.append(current)
+
+    df = coalesce_latest(normalized, ["date", "stockCode"])
     preferred = ["date", "stockCode"] + [field for field in ALL_FIELDS if field in df.columns]
     remaining = sorted(set(df.columns) - set(preferred))
     df = df[preferred + remaining]
 
     DERIVED_ROOT.mkdir(parents=True, exist_ok=True)
-    output = DERIVED_ROOT / f"{spec.stock_code}_{spec.name}_core65.parquet"
     temp = output.with_suffix(".parquet.tmp")
     df.to_parquet(temp, index=False)
     os.replace(temp, output)
@@ -290,8 +305,19 @@ def main() -> None:
 
     print(f"metrics: core={len(CORE_FIELDS)}, checks={len(CHECK_FIELDS)}, total={len(ALL_FIELDS)}")
     for spec in INDEX_DOWNLOADS:
+        output = DERIVED_ROOT / f"{spec.stock_code}_{spec.name}_core65.parquet"
+        windows = missing_windows(
+            output,
+            first_date=date(spec.start_year, 1, 1),
+            end_date=args.end_date,
+            force=args.force,
+        )
+        if not windows:
+            print(f"up to date: {output.relative_to(REPO)} through {args.end_date}")
+            continue
+
         paths: list[Path] = []
-        for start_date, end_date in ten_year_windows(spec.start_year, args.end_date):
+        for start_date, end_date in windows:
             paths.extend(
                 download_window(
                     stock_code=spec.stock_code,
