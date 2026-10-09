@@ -176,14 +176,21 @@ def _sentence_around(text: str, start: int, end: int) -> str:
 
 def _realtime_match_is_valid(text: str, match: re.Match[str], method: str) -> bool:
     """Reject historical, hypothetical, threshold and intraday star mentions."""
-    sentence = _sentence_around(text, match.start(), match.end())
-    if any(cue in sentence for cue in NONCURRENT_EVIDENCE_CUES):
+    # Only inspect text leading into the matched value.  A valid current sentence
+    # can say "目前4.7星，距离4.8星不远"; looking at the whole sentence would
+    # incorrectly reject the first, valid 4.7 observation.
+    evidence_prefix = re.sub(
+        r"\s+", " ", text[max(0, match.start() - 60) : match.end()]
+    ).strip()
+    if any(cue in evidence_prefix for cue in NONCURRENT_EVIDENCE_CUES):
         return False
-    if YEAR_MENTION_RE.search(sentence):
+    if YEAR_MENTION_RE.search(evidence_prefix):
         return False
-    if "中午" in sentence or "上午收盘" in sentence:
+    if "中午" in evidence_prefix or "上午收盘" in evidence_prefix:
         return False
-    if method != "closing_statement" and any(cue in sentence for cue in INTRADAY_EVIDENCE_CUES):
+    if method != "closing_statement" and any(
+        cue in evidence_prefix for cue in INTRADAY_EVIDENCE_CUES
+    ):
         return False
     return True
 
