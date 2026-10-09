@@ -47,30 +47,17 @@
     },
     "2022": {
       "uniqueArticles": 246,
-      "directDecimalExact": 123,
+      "directDecimalExact": 122,
       "reviewReasonCounts": {
         "approximate_range": 11,
-        "integer_regime_only": 78,
+        "integer_regime_only": 79,
         "no_exact_text_evidence": 31,
         "market_closed_no_new_target": 2,
         "near_threshold_only": 1
       },
       "sameDayConflicts": 0,
-      "legacyDecimalConflictCount": 2,
-      "legacyDecimalConflicts": [
-        {
-          "date": "2022-09-27",
-          "direct": 5.1,
-          "legacy": 5,
-          "evidence": "截止到收盘，从5.1星级"
-        },
-        {
-          "date": "2022-04-07",
-          "direct": 4.5,
-          "legacy": 4.8,
-          "evidence": "今天大盘整体下跌，还是在4.5星级"
-        }
-      ]
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
     },
     "2023": {
       "uniqueArticles": 245,
@@ -95,29 +82,22 @@
         "market_closed_no_new_target": 2
       },
       "sameDayConflicts": 0,
-      "legacyDecimalConflictCount": 2,
-      "legacyDecimalConflicts": [
-        {
-          "date": "2024-08-01",
-          "direct": 5.8,
-          "legacy": 5.7,
-          "evidence": "收盘，回到了5.8星"
-        },
-        {
-          "date": "2024-02-02",
-          "direct": 5.8,
-          "legacy": 5.9,
-          "evidence": "摸到5.8星级"
-        }
-      ]
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
     }
   },
-  "exactTargets": 562,
-  "reviewRows": 407,
-  "legacyDecimalConflictCount": 4,
+  "exactTargets": 561,
+  "reviewRows": 408,
+  "legacyDecimalConflictCount": 0,
   "policy": [
     "Only decimal/half-star current evidence is treated as historical exact; integer wording such as 5星级 is kept as a coarse regime.",
     "Historical, hypothetical, negated and intraday mentions are rejected.",
     "Missing 2012-2020 corpus is reported rather than guessed."
+  ],
+  "resolvedConflictNotes": [
+    "2022-04-07: article says rounded 4.5-star regime, then explicitly '如果细一些计算，目前算是4.8'; use 4.8.",
+    "2022-09-27: close moved from 5.1 to coarse '5星级'; do not infer 5.0 as decimal direct evidence; keep annual fallback.",
+    "2024-08-01: article explicitly says '截止到收盘，还在5.7星'; later 5.8 mention is for July 24-25.",
+    "2024-02-02: article says full-day market '摸到了5.9星级'; 5.8 is only a nearby threshold."
   ]
 }
