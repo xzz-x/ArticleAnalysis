@@ -1,0 +1,103 @@
+{
+  "requestedYears": [
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "corpusYearsPresent": [
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "corpusMissingYears": [
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "byYear": {
+    "2021": {
+      "uniqueArticles": 242,
+      "directDecimalExact": 86,
+      "reviewReasonCounts": {
+        "no_exact_text_evidence": 78,
+        "integer_regime_only": 75,
+        "near_threshold_only": 1,
+        "approximate_range": 2
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
+    },
+    "2022": {
+      "uniqueArticles": 246,
+      "directDecimalExact": 122,
+      "reviewReasonCounts": {
+        "approximate_range": 11,
+        "integer_regime_only": 79,
+        "no_exact_text_evidence": 31,
+        "market_closed_no_new_target": 2,
+        "near_threshold_only": 1
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
+    },
+    "2023": {
+      "uniqueArticles": 245,
+      "directDecimalExact": 162,
+      "reviewReasonCounts": {
+        "no_exact_text_evidence": 14,
+        "approximate_range": 27,
+        "market_closed_no_new_target": 2,
+        "integer_regime_only": 40
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
+    },
+    "2024": {
+      "uniqueArticles": 236,
+      "directDecimalExact": 191,
+      "reviewReasonCounts": {
+        "approximate_range": 23,
+        "integer_regime_only": 11,
+        "no_exact_text_evidence": 9,
+        "market_closed_no_new_target": 2
+      },
+      "sameDayConflicts": 0,
+      "legacyDecimalConflictCount": 0,
+      "legacyDecimalConflicts": []
+    }
+  },
+  "exactTargets": 561,
+  "reviewRows": 408,
+  "legacyDecimalConflictCount": 0,
+  "policy": [
+    "Only decimal/half-star current evidence is treated as historical exact; integer wording such as 5星级 is kept as a coarse regime.",
+    "Historical, hypothetical, negated and intraday mentions are rejected.",
+    "Missing 2012-2020 corpus is reported rather than guessed."
+  ],
+  "resolvedConflictNotes": [
+    "2022-04-07: article says rounded 4.5-star regime, then explicitly '如果细一些计算，目前算是4.8'; use 4.8.",
+    "2022-09-27: close moved from 5.1 to coarse '5星级'; do not infer 5.0 as decimal direct evidence; keep annual fallback.",
+    "2024-08-01: article explicitly says '截止到收盘，还在5.7星'; later 5.8 mention is for July 24-25.",
+    "2024-02-02: article says full-day market '摸到了5.9星级'; 5.8 is only a nearby threshold."
+  ]
+}

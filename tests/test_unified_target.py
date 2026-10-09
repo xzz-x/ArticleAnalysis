@@ -20,7 +20,7 @@ def test_unified_target_has_one_row_per_date() -> None:
     assert target["date"].is_unique
     assert target["date"].min() == "2022-01-04"
     assert target["date"].max() == "2026-08-31"
-    assert int((target["training_weight"] > 0).sum()) == 1128
+    assert int((target["training_weight"] > 0).sum()) == 1127
 
 
 def test_direct_article_evidence_overrides_conflicting_legacy_2025_value() -> None:

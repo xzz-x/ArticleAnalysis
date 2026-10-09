@@ -1,0 +1,45 @@
+name: P0 P1 validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/article_analysis/**"
+      - "research/**"
+      - "tests/**"
+      - "data/features/star_model_panel_2022_2026.csv"
+      - ".github/workflows/p0-p1-validation.yml"
+  push:
+    branches:
+      - research/p0-p1-hardening
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+      - name: Rebuild unified Target from audited evidence
+        run: python research/build_unified_star_target.py
+      - name: Run tests
+        run: pytest -q
+      - name: Run locked P1 analysis
+        run: python research/dynamic_price_residual_analysis.py
+      - name: Upload P1 outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-price-residual-analysis
+          path: |
+            data/derived/price_residual_factor_screen.csv
+            data/derived/price_residual_holdout_metrics.csv
+            data/derived/star_change_day_analysis.csv
+            data/derived/price_residual_analysis_summary.json

@@ -8,10 +8,24 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 PANEL_PATH = REPO / "data" / "features" / "star_model_panel_2022_2026.parquet"
+PANEL_CSV = REPO / "data" / "features" / "star_model_panel_2022_2026.csv"
 
 
 def load_panel() -> pd.DataFrame:
-    return pd.read_parquet(PANEL_PATH)
+    if PANEL_PATH.exists():
+        return pd.read_parquet(PANEL_PATH)
+    panel = pd.read_csv(PANEL_CSV, low_memory=False)
+    panel["stockCode"] = (
+        panel["stockCode"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
+    )
+    date_columns = [
+        column
+        for column in panel.columns
+        if column == "date" or column.endswith("_date") or column.endswith("_end")
+    ]
+    for column in date_columns:
+        panel[column] = pd.to_datetime(panel[column], errors="coerce")
+    return panel
 
 
 def test_model_panel_has_two_complete_index_views_per_target() -> None:

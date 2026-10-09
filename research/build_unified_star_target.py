@@ -61,8 +61,10 @@ def _finalize(df: pd.DataFrame) -> pd.DataFrame:
         result[column] = _number(result[column])
 
     point = result["star"].notna()
-    result.loc[point & result["star_low"].isna(), "star_low"] = result.loc[point, "star"]
-    result.loc[point & result["star_high"].isna(), "star_high"] = result.loc[point, "star"]
+    missing_low = point & result["star_low"].isna()
+    missing_high = point & result["star_high"].isna()
+    result.loc[missing_low, "star_low"] = result.loc[missing_low, "star"].to_numpy()
+    result.loc[missing_high, "star_high"] = result.loc[missing_high, "star"].to_numpy()
     bounded = result["star_low"].notna() & result["star_high"].notna()
     result.loc[bounded, "target_mid"] = (
         result.loc[bounded, "star_low"] + result.loc[bounded, "star_high"]
@@ -111,6 +113,128 @@ def load_historic_year(year: int) -> pd.DataFrame:
         }
     )
     return _finalize(result)
+
+
+def load_historical_article_targets(
+    valid_trading_dates: set[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load optional 2022-2024 direct article evidence produced by the historical pipeline.
+
+    The verified annual files are also the market-calendar authority for these
+    years. Holiday/weekend articles may discuss a reference star state but must
+    not create a new daily realtime Target.
+    """
+    exact_path = DERIVED / "star_target_historical_direct.csv"
+    review_path = DERIVED / "star_target_historical_review_queue.csv"
+    empty = pd.DataFrame(columns=OUTPUT_COLUMNS)
+    empty_exclusions = pd.DataFrame(
+        columns=["date", "market", "reason", "evidence", "review_status", "source_file", "source_url", "title"]
+    )
+    if not exact_path.exists():
+        return empty, empty, empty_exclusions
+
+    exact_source = pd.read_csv(exact_path)
+    exact_source = exact_source[
+        exact_source["date"].astype(str).str[:4].isin(["2022", "2023", "2024"])
+    ].copy()
+    if valid_trading_dates is not None:
+        exact_source = exact_source[
+            exact_source["date"].astype(str).isin(valid_trading_dates)
+        ].copy()
+    confidence = _number(exact_source["confidence"]).fillna(0.985)
+    exact = pd.DataFrame(
+        {
+            "date": exact_source["date"],
+            "star": _number(exact_source["star"]),
+            "star_low": _number(exact_source["star"]),
+            "star_high": _number(exact_source["star"]),
+            "target_mid": _number(exact_source["star"]),
+            "status": "exact",
+            "training_weight": confidence,
+            "evidence_confidence": confidence,
+            "market": exact_source.get("market", "A股"),
+            "realtime_or_backfilled": exact_source.get("realtime_or_backfilled", "realtime"),
+            "source": "derived/star_target_historical_direct.csv",
+            "source_priority": "historical_direct_article_evidence",
+            "evidence_method": exact_source["evidence_method"],
+            "evidence": exact_source["evidence"],
+            "review_status": exact_source["review_status"],
+            "source_url": _text_column(exact_source, "source_url"),
+            "source_file": _text_column(exact_source, "relative_path"),
+            "notes": "",
+        }
+    )
+    exact = _finalize(exact)
+
+    if not review_path.exists():
+        return exact, empty, empty_exclusions
+
+    review_source = pd.read_csv(review_path)
+    review_source = review_source[
+        review_source["date"].astype(str).str[:4].isin(["2022", "2023", "2024"])
+    ].copy()
+    if valid_trading_dates is not None:
+        review_source = review_source[
+            review_source["date"].astype(str).isin(valid_trading_dates)
+        ].copy()
+    closed = review_source[review_source["reason"] == "market_closed_no_new_target"].copy()
+    usable = review_source[
+        review_source["reason"].isin(["approximate_range", "near_threshold_only"])
+    ].copy()
+    status = usable["reason"].map({"approximate_range": "range", "near_threshold_only": "threshold"})
+    confidence = status.map({"range": 0.75, "threshold": 0.50})
+    review = pd.DataFrame(
+        {
+            "date": usable["date"],
+            "star": pd.NA,
+            "star_low": _number(usable["range_low"]),
+            "star_high": _number(usable["range_high"]),
+            "target_mid": pd.NA,
+            "status": status,
+            "training_weight": status.map(STATUS_BASE_WEIGHT) * confidence,
+            "evidence_confidence": confidence,
+            "market": usable.get("market", "A股"),
+            "realtime_or_backfilled": "realtime",
+            "source": "derived/star_target_historical_review_queue.csv",
+            "source_priority": "historical_direct_article_interval_or_threshold",
+            "evidence_method": usable["reason"],
+            "evidence": usable["evidence"],
+            "review_status": usable["review_status"],
+            "source_url": _text_column(usable, "source_url"),
+            "source_file": _text_column(usable, "relative_path"),
+            "notes": usable["reason"].map(
+                {
+                    "approximate_range": "exact decimal intentionally not inferred from direct article interval",
+                    "near_threshold_only": "only proximity to the reference star is known",
+                }
+            ),
+        }
+    )
+    review = _finalize(review)
+    exclusions = pd.DataFrame(
+        {
+            "date": closed["date"],
+            "market": closed.get("market", "A股"),
+            "reason": closed["reason"],
+            "evidence": closed["evidence"],
+            "review_status": closed["review_status"],
+            "source_file": _text_column(closed, "relative_path"),
+            "source_url": _text_column(closed, "source_url"),
+            "title": closed["title"],
+        }
+    )
+    return exact, review, exclusions
+
+
+def apply_historical_article_priority(
+    annual: pd.DataFrame,
+    direct: pd.DataFrame,
+    review: pd.DataFrame,
+    exclusions: pd.DataFrame,
+) -> pd.DataFrame:
+    covered = set(direct["date"]) | set(review["date"]) | set(exclusions["date"])
+    fallback = annual[~annual["date"].isin(covered)].copy()
+    return _finalize(pd.concat([fallback, direct, review], ignore_index=True))
 
 
 def load_direct_targets() -> pd.DataFrame:
@@ -277,9 +401,20 @@ def records(df: pd.DataFrame) -> list[dict[str, Any]]:
 
 
 def main() -> None:
-    historic = pd.concat([load_historic_year(year) for year in (2022, 2023, 2024)], ignore_index=True)
+    historic_annual = pd.concat([load_historic_year(year) for year in (2022, 2023, 2024)], ignore_index=True)
+    valid_historic_trading_dates = set(historic_annual["date"].astype(str))
+    historic_direct, historic_review, historic_exclusions = load_historical_article_targets(
+        valid_historic_trading_dates
+    )
+    historic = apply_historical_article_priority(
+        historic_annual,
+        historic_direct,
+        historic_review,
+        historic_exclusions,
+    )
     direct = load_direct_targets()
     review, exclusions = load_review_targets()
+    exclusions = pd.concat([historic_exclusions, exclusions], ignore_index=True, sort=False)
     direct, exclusions = exclude_known_closed_direct(direct, exclusions)
     annual_2025 = normalize_annual_2025()
     legacy = legacy_only_2025(annual_2025, direct, review, exclusions)
@@ -310,10 +445,14 @@ def main() -> None:
         "trainableRows": int((unified["training_weight"] > 0).sum()),
         "thresholdOnlyRows": int((unified["status"] == "threshold").sum()),
         "marketClosedExclusions": int(len(exclusions)),
+        "historicalDirectExactRows": int(len(historic_direct)),
+        "historicalDirectReviewRows": int(len(historic_review)),
+        "historicalCalendarPolicy": "2022-2024 direct article evidence is admitted only on verified A-share trading dates",
+        "historicalAnnualFallbackRows": int((historic["source_priority"] == "historic_verified_annual").sum()),
         "legacyOnlyGapFills": records(legacy[["date", "star", "evidence_confidence", "review_status"]]),
         "2025SourceConflictCount": int(len(conflicts)),
         "sourcePolicy": [
-            "2022-2024: verified annual files",
+            "2022-2024: direct article evidence overrides verified annual files when the historical pipeline is present; annual files remain fallback",
             "2025-2026: direct article evidence overrides the legacy annual file",
             "review intervals remain intervals; threshold-only evidence is not trainable",
             "market-closed articles are excluded",

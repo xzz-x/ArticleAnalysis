@@ -27,15 +27,29 @@ ASHARE_ARTICLE_MARKER = "指数估值数据"
 GLOBAL_ARTICLE_MARKER = "美股指数估值数据"
 OPENING_TEXT_CHARS = 3000
 
+CLOSE_TRANSITION_STAR_RE = re.compile(
+    r"(?:截止到(?:下午)?收盘|截至(?:下午)?收盘|截止(?:下午)?收盘|"
+    r"到(?:下午)?收盘(?:的时候)?|(?:下午)?收盘(?:时|后)?)"
+    r"[^。！？\n]{0,120}?(?:回到|回到了|降到|升到)\s*" + PRECISE_STAR_TOKEN
+)
 CLOSE_STAR_RE = re.compile(
-    r"(?:截止到收盘|截至收盘|截止收盘|到收盘(?:的时候)?|收盘(?:时|后)?)"
-    r"[^。！？\n]{0,100}?" + PRECISE_STAR_TOKEN
+    r"(?:截止到(?:下午)?收盘|截至(?:下午)?收盘|截止(?:下午)?收盘|"
+    r"到(?:下午)?收盘(?:的时候)?|(?:下午)?收盘(?:时|后)?)"
+    r"[^。！？\n]{0,120}?" + PRECISE_STAR_TOKEN
+)
+FINE_CURRENT_STAR_RE = re.compile(
+    r"(?:如果细一些计算[,，]?\s*)?(?:目前|当前)"
+    r"[^。！？\n]{0,30}?(?:算是|精确(?:是|为)?|约为|大约是)\s*"
+    r"(?P<star>[1-5]\.\d)(?:\s*星(?:级)?)?"
 )
 TODAY_MARKET_STAR_RE = re.compile(
     r"(?:今天|今日)(?:大盘|A股|市场)[^。！？\n]{0,140}?" + PRECISE_STAR_TOKEN
 )
+CURRENT_STATE_STAR_RE = re.compile(
+    r"(?:目前|当前)(?:还是|仍然|仍|依然)?(?:在|处于)\s*" + PRECISE_STAR_TOKEN
+)
 OPENING_STATE_STAR_RE = re.compile(
-    r"(?:还在|回到|回到了|重回|达到|涨到|上涨到|摸到)\s*" + PRECISE_STAR_TOKEN
+    r"(?:还在|回到|回到了|重回|达到|涨到|上涨到|摸到|摸到了)\s*" + PRECISE_STAR_TOKEN
 )
 APPROX_RANGE_RE = re.compile(
     r"(?P<low>[1-5](?:\.\d)?)\s*[-–—~～至到]\s*"
@@ -136,6 +150,96 @@ def _is_ashare_daily_article(title: str) -> bool:
     return ASHARE_ARTICLE_MARKER in title and GLOBAL_ARTICLE_MARKER not in title
 
 
+NONCURRENT_EVIDENCE_CUES = (
+    "上周",
+    "上个月",
+    "昨天",
+    "昨日",
+    "前天",
+    "此前",
+    "之前",
+    "当时",
+    "曾经",
+    "历史",
+    "最低点",
+    "最高点",
+    "距离",
+    "还没有出现",
+    "没有出现",
+    "如果",
+    "假如",
+    "假设",
+    "才能",
+    "才回到",
+    "才会回到",
+    "收盘基础上",
+    "没到",
+    "没有到",
+    "未到",
+    "未回到",
+    "没有彻底回到",
+    "出现过",
+    "两次",
+    "最低",
+    "最高",
+)
+INTRADAY_EVIDENCE_CUES = ("中午收盘", "午间收盘", "上午收盘", "盘中", "一度")
+YEAR_MENTION_RE = re.compile(r"20\d{2}年")
+MONTH_DAY_RE = re.compile(
+    r"(?P<month>\d{1,2})月(?P<day>\d{1,2})(?:[、,，~～\-]\d{1,2})?日"
+)
+
+
+def _sentence_around(text: str, start: int, end: int) -> str:
+    """Return the sentence containing a candidate realtime star mention."""
+    left = max(text.rfind(mark, 0, start) for mark in ("。", "！", "？", "\n")) + 1
+    right_candidates = [text.find(mark, end) for mark in ("。", "！", "？", "\n")]
+    right_candidates = [value for value in right_candidates if value >= 0]
+    right = min(right_candidates) if right_candidates else len(text)
+    return re.sub(r"\s+", " ", text[left:right]).strip()
+
+
+def _realtime_match_is_valid(
+    text: str,
+    match: re.Match[str],
+    method: str,
+    publish_date: str | None = None,
+) -> bool:
+    """Reject historical, hypothetical, threshold and intraday star mentions."""
+    # Only inspect text leading into the matched value.  A valid current sentence
+    # can say "目前4.7星，距离4.8星不远"; looking at the whole sentence would
+    # incorrectly reject the first, valid 4.7 observation.
+    left = max(text.rfind(mark, 0, match.start()) for mark in ("。", "！", "？", "\n")) + 1
+    evidence_prefix = re.sub(r"\s+", " ", text[left : match.end()]).strip()
+    cue_text = (
+        evidence_prefix.replace("如果细一些计算", "")
+        if method == "fine_current_statement"
+        else evidence_prefix
+    )
+    if any(cue in cue_text for cue in NONCURRENT_EVIDENCE_CUES):
+        return False
+    if YEAR_MENTION_RE.search(evidence_prefix):
+        return False
+    month_day = MONTH_DAY_RE.search(evidence_prefix)
+    if month_day:
+        if not publish_date:
+            return False
+        published = pd.to_datetime(publish_date, errors="coerce")
+        if pd.isna(published):
+            return False
+        if (
+            int(month_day.group("month")) != int(published.month)
+            or int(month_day.group("day")) != int(published.day)
+        ):
+            return False
+    if "中午" in evidence_prefix or "上午收盘" in evidence_prefix:
+        return False
+    if method != "closing_statement" and any(
+        cue in evidence_prefix for cue in INTRADAY_EVIDENCE_CUES
+    ):
+        return False
+    return True
+
 def extract_realtime_observation_from_article(
     *,
     title: str,
@@ -162,13 +266,23 @@ def extract_realtime_observation_from_article(
     lines = (text or "").splitlines()
     opening = "\n".join(lines[1:])[:opening_chars] if lines else ""
     patterns = (
+        ("closing_statement", CLOSE_TRANSITION_STAR_RE, 1.0),
         ("closing_statement", CLOSE_STAR_RE, 1.0),
+        ("fine_current_statement", FINE_CURRENT_STAR_RE, 0.998),
         ("today_market_statement", TODAY_MARKET_STAR_RE, 0.995),
+        ("current_state_statement", CURRENT_STATE_STAR_RE, 0.992),
         ("opening_state_statement", OPENING_STATE_STAR_RE, 0.99),
     )
     for method, pattern, confidence in patterns:
-        match = pattern.search(opening)
-        if match:
+        matches = [
+            match
+            for match in pattern.finditer(opening)
+            if _realtime_match_is_valid(opening, match, method, publish_date)
+        ]
+        if matches:
+            # Prefer the last valid explicit close/today statement, but the first
+            # clean opening-state statement when no stronger evidence exists.
+            match = matches[0] if method == "opening_state_statement" else matches[-1]
             return RealtimeStarObservation(
                 star=float(match.group("star")),
                 evidence=re.sub(r"\s+", " ", match.group(0)).strip(),
