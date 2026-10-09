@@ -28,8 +28,9 @@ GLOBAL_ARTICLE_MARKER = "美股指数估值数据"
 OPENING_TEXT_CHARS = 3000
 
 CLOSE_STAR_RE = re.compile(
-    r"(?:截止到收盘|截至收盘|截止收盘|到收盘(?:的时候)?|收盘(?:时|后)?)"
-    r"[^。！？\n]{0,100}?" + PRECISE_STAR_TOKEN
+    r"(?:截止到(?:下午)?收盘|截至(?:下午)?收盘|截止(?:下午)?收盘|"
+    r"到(?:下午)?收盘(?:的时候)?|(?:下午)?收盘(?:时|后)?)"
+    r"[^。！？\n]{0,120}?" + PRECISE_STAR_TOKEN
 )
 TODAY_MARKET_STAR_RE = re.compile(
     r"(?:今天|今日)(?:大盘|A股|市场)[^。！？\n]{0,140}?" + PRECISE_STAR_TOKEN
@@ -136,6 +137,56 @@ def _is_ashare_daily_article(title: str) -> bool:
     return ASHARE_ARTICLE_MARKER in title and GLOBAL_ARTICLE_MARKER not in title
 
 
+NONCURRENT_EVIDENCE_CUES = (
+    "上周",
+    "上个月",
+    "昨天",
+    "昨日",
+    "前天",
+    "此前",
+    "之前",
+    "当时",
+    "曾经",
+    "历史",
+    "最低点",
+    "最高点",
+    "距离",
+    "还没有出现",
+    "没有出现",
+    "如果",
+    "假如",
+    "假设",
+    "才能",
+    "才回到",
+    "才会回到",
+    "收盘基础上",
+)
+INTRADAY_EVIDENCE_CUES = ("中午收盘", "午间收盘", "上午收盘", "盘中", "一度")
+YEAR_MENTION_RE = re.compile(r"20\\d{2}年")
+
+
+def _sentence_around(text: str, start: int, end: int) -> str:
+    """Return the sentence containing a candidate realtime star mention."""
+    left = max(text.rfind(mark, 0, start) for mark in ("。", "！", "？", "\\n")) + 1
+    right_candidates = [text.find(mark, end) for mark in ("。", "！", "？", "\\n")]
+    right_candidates = [value for value in right_candidates if value >= 0]
+    right = min(right_candidates) if right_candidates else len(text)
+    return re.sub(r"\\s+", " ", text[left:right]).strip()
+
+
+def _realtime_match_is_valid(text: str, match: re.Match[str], method: str) -> bool:
+    """Reject historical, hypothetical, threshold and intraday star mentions."""
+    sentence = _sentence_around(text, match.start(), match.end())
+    if any(cue in sentence for cue in NONCURRENT_EVIDENCE_CUES):
+        return False
+    if YEAR_MENTION_RE.search(sentence):
+        return False
+    if "中午" in sentence or "上午收盘" in sentence:
+        return False
+    if method != "closing_statement" and any(cue in sentence for cue in INTRADAY_EVIDENCE_CUES):
+        return False
+    return True
+
 def extract_realtime_observation_from_article(
     *,
     title: str,
@@ -167,8 +218,15 @@ def extract_realtime_observation_from_article(
         ("opening_state_statement", OPENING_STATE_STAR_RE, 0.99),
     )
     for method, pattern, confidence in patterns:
-        match = pattern.search(opening)
-        if match:
+        matches = [
+            match
+            for match in pattern.finditer(opening)
+            if _realtime_match_is_valid(opening, match, method)
+        ]
+        if matches:
+            # Prefer the last valid explicit close/today statement, but the first
+            # clean opening-state statement when no stronger evidence exists.
+            match = matches[0] if method == "opening_state_statement" else matches[-1]
             return RealtimeStarObservation(
                 star=float(match.group("star")),
                 evidence=re.sub(r"\s+", " ", match.group(0)).strip(),
