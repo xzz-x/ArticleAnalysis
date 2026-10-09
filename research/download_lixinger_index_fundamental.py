@@ -15,7 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-from research.lixinger_incremental import (
+from article_analysis.lixinger_incremental import (
     coalesce_latest,
     is_request_size_or_field_limit_error,
     missing_windows,
