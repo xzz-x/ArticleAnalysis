@@ -61,8 +61,10 @@ def _finalize(df: pd.DataFrame) -> pd.DataFrame:
         result[column] = _number(result[column])
 
     point = result["star"].notna()
-    result.loc[point & result["star_low"].isna(), "star_low"] = result.loc[point, "star"]
-    result.loc[point & result["star_high"].isna(), "star_high"] = result.loc[point, "star"]
+    missing_low = point & result["star_low"].isna()
+    missing_high = point & result["star_high"].isna()
+    result.loc[missing_low, "star_low"] = result.loc[missing_low, "star"].to_numpy()
+    result.loc[missing_high, "star_high"] = result.loc[missing_high, "star"].to_numpy()
     bounded = result["star_low"].notna() & result["star_high"].notna()
     result.loc[bounded, "target_mid"] = (
         result.loc[bounded, "star_low"] + result.loc[bounded, "star_high"]
