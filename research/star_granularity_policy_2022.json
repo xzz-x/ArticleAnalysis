@@ -1,0 +1,57 @@
+{
+  "version": "2022-granularity-audit-v1",
+  "status": "research_policy_not_yet_applied_to_canonical_target",
+  "rationale": "Early-2022 articles used coarse half-star/integer categories and fine decimal calculations in parallel. Treating every displayed 4.0/4.5/5.0 as a precise 0.1-star point creates false precision.",
+  "key_evidence": [
+    {
+      "date": "2022-04-07",
+      "source": "data/verified/daily_star_2022_04.csv",
+      "evidence": "今天大盘整体下跌，还是在4.5星级。如果细一些计算，目前算是4.8了。",
+      "implication": "The coarse label 4.5-star and fine decimal 4.8 can simultaneously describe the same day."
+    },
+    {
+      "date": "2022-05-31",
+      "source": "data/verified/daily_star_2022_05.csv",
+      "evidence": "今天大盘上涨，走出了5星级，现在算是4.9星级。",
+      "implication": "5-star was a coarse category boundary while 4.9 was the fine decimal state."
+    },
+    {
+      "date": "2022-06-01 onward",
+      "source": "data/verified/daily_star_2022_06.csv",
+      "evidence": "Daily article evidence consistently reports 0.1-star values such as 4.9, 4.8, 4.7, 4.6 and 4.5.",
+      "implication": "June 2022 onward is suitable for ordinary fine 0.1-star treatment."
+    }
+  ],
+  "proposed_semantics": [
+    {
+      "condition": "date <= 2022-05-30 AND status == exact AND displayed star is on the 0.5 grid",
+      "granularity": "coarse_0.5_bucket",
+      "latent_constraint": "[displayed_star, displayed_star + 0.5)",
+      "canonical_mutation": "not_yet"
+    },
+    {
+      "condition": "explicit fine decimal such as 4.8/4.9/5.1, including before 2022-05-31",
+      "granularity": "fine_0.1",
+      "latent_constraint": "approximately displayed_star +/- 0.05 under nearest-0.1 publication",
+      "canonical_mutation": "not_yet"
+    },
+    {
+      "condition": "date >= 2022-05-31 and exact decimal star",
+      "granularity": "fine_0.1",
+      "latent_constraint": "approximately displayed_star +/- 0.05 under nearest-0.1 publication",
+      "canonical_mutation": "not_yet"
+    },
+    {
+      "condition": "explicit x-y range",
+      "granularity": "explicit_range",
+      "latent_constraint": "stated range",
+      "canonical_mutation": "not_yet"
+    }
+  ],
+  "safeguards": [
+    "Do not replace coarse labels with invented 4.1/4.2/4.3/4.4 decimals.",
+    "Preserve original article wording and verified star field as evidence.",
+    "Add granularity as separate metadata in a versioned Target v2 rather than overwriting the frozen v1 used for the completed prospective experiment.",
+    "Any new model based on Target v2 requires a new clean confirmation window strictly after the data used to define this policy."
+  ]
+}
