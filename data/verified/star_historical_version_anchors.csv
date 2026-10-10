@@ -1,0 +1,5 @@
+date,contemporaneous_display_star,contemporaneous_fine_star,granularity,publication_version,source_type,source_url,evidence,training_allowed,notes
+2018-12-19,4.0,,integer/coarse,legacy_empirical_coarse,direct_bank_screw_xueqiu,https://xueqiu.com/3079173340/109677906,目前市场处于4星级；四星级五星级分类是经验判断，没有特别严格的说法,false,用于版本演化审计，不作为现代0.1星训练Target
+2021-04-01,3.5,,half-star,legacy_half_star,direct_bank_screw_xueqiu,https://xueqiu.com/3079173340/176128722,今天上涨后又回到了3.5星级,false,用于版本演化审计
+2022-04-07,4.5,4.8,coarse-plus-fine,transition_coarse_plus_fine,existing_project_evidence,,4.5星级；如果细一些计算，目前算是4.8,false,项目既有granularity审计关键证据
+2022-05-31,4.9,4.9,0.1-star,modern_0_1_transition,existing_project_evidence,,走出5星级，现在算是4.9星级,false,现代0.1星发布机制的转折标记
