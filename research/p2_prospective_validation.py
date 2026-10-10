@@ -15,7 +15,7 @@ DEFAULT_TARGET = REPO / "data" / "derived" / "star_target_2022_2026_unified.csv"
 DEFAULT_OUTPUT = REPO / "data" / "derived" / "p2_prospective_validation.csv"
 DEFAULT_SUMMARY = REPO / "data" / "derived" / "p2_prospective_validation_summary.json"
 DEFAULT_PROSPECTIVE_TARGET = REPO / "data" / "verified" / "star_target_prospective_2026_09_onward.csv"
-DEFAULT_PROSPECTIVE_PRICE = REPO / "data" / "derived" / "csi_all_share_prospective_prices.csv"
+DEFAULT_PROSPECTIVE_PRICE = REPO / "data" / "verified" / "csi_all_share_prospective_2026_08_31_2026_10_09.csv"
 
 
 def load_spec(path: Path) -> dict:
