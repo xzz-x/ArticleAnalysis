@@ -37,6 +37,13 @@ CLOSE_STAR_RE = re.compile(
     r"到(?:下午)?收盘(?:的时候)?|(?:下午)?收盘(?:时|后)?)"
     r"[^。！？\n]{0,120}?" + PRECISE_STAR_TOKEN
 )
+CLOSE_RANGE_RE = re.compile(
+    r"(?:截止到(?:下午)?收盘|截至(?:下午)?收盘|截止(?:下午)?收盘|"
+    r"到(?:下午)?收盘(?:的时候)?|(?:下午)?收盘(?:时|后)?)"
+    r"[^。！？\n]{0,120}?"
+    r"(?P<low>[1-5](?:\.\d)?)\s*[-–—~～至到]\s*"
+    r"(?P<high>[1-5](?:\.\d)?)\s*星(?:级)?"
+)
 FINE_CURRENT_STAR_RE = re.compile(
     r"(?:如果细一些计算[,，]?\s*)?(?:目前|当前)"
     r"[^。！？\n]{0,30}?(?:算是|精确(?:是|为)?|约为|大约是)\s*"
@@ -177,6 +184,8 @@ NONCURRENT_EVIDENCE_CUES = (
     "没有到",
     "未到",
     "未回到",
+    "没有回到",
+    "没回到",
     "没有彻底回到",
     "出现过",
     "两次",
@@ -265,9 +274,43 @@ def extract_realtime_observation_from_article(
 
     lines = (text or "").splitlines()
     opening = "\n".join(lines[1:])[:opening_chars] if lines else ""
+
+    # Closing evidence has semantic priority over any earlier current/opening
+    # statement. Compare exact and range closing mentions by document position:
+    # if the final closing statement is a range, do not collapse it to an exact
+    # point merely because an earlier intraday/current exact value exists.
+    closing_exact: list[re.Match[str]] = []
+    seen_closing: set[tuple[int, int, str]] = set()
+    for pattern in (CLOSE_TRANSITION_STAR_RE, CLOSE_STAR_RE):
+        for match in pattern.finditer(opening):
+            if not _realtime_match_is_valid(opening, match, "closing_statement", publish_date):
+                continue
+            key = (match.start(), match.end(), match.group("star"))
+            if key not in seen_closing:
+                seen_closing.add(key)
+                closing_exact.append(match)
+
+    closing_ranges = [
+        match
+        for match in CLOSE_RANGE_RE.finditer(opening)
+        if _realtime_match_is_valid(opening, match, "closing_range", publish_date)
+    ]
+    final_exact = max(closing_exact, key=lambda match: (match.start(), match.end()), default=None)
+    final_range = max(closing_ranges, key=lambda match: (match.start(), match.end()), default=None)
+    if final_exact is not None or final_range is not None:
+        if final_range is not None and (
+            final_exact is None or final_range.start() > final_exact.start()
+        ):
+            return None
+        assert final_exact is not None
+        return RealtimeStarObservation(
+            star=float(final_exact.group("star")),
+            evidence=re.sub(r"\s+", " ", final_exact.group(0)).strip(),
+            evidence_method="closing_statement",
+            confidence=1.0,
+        )
+
     patterns = (
-        ("closing_statement", CLOSE_TRANSITION_STAR_RE, 1.0),
-        ("closing_statement", CLOSE_STAR_RE, 1.0),
         ("fine_current_statement", FINE_CURRENT_STAR_RE, 0.998),
         ("today_market_statement", TODAY_MARKET_STAR_RE, 0.995),
         ("current_state_statement", CURRENT_STATE_STAR_RE, 0.992),
@@ -280,8 +323,8 @@ def extract_realtime_observation_from_article(
             if _realtime_match_is_valid(opening, match, method, publish_date)
         ]
         if matches:
-            # Prefer the last valid explicit close/today statement, but the first
-            # clean opening-state statement when no stronger evidence exists.
+            # Prefer the last valid today/current statement, but the first clean
+            # opening-state statement when no stronger evidence exists.
             match = matches[0] if method == "opening_state_statement" else matches[-1]
             return RealtimeStarObservation(
                 star=float(match.group("star")),
@@ -648,7 +691,21 @@ def build_daily_target_review_queue(
         lines = (article.text or "").splitlines()
         opening = "\n".join(lines[1:])[:opening_chars] if lines else ""
         compact = re.sub(r"\s+", " ", opening).strip()
-        range_match = APPROX_RANGE_RE.search(opening)
+        closing_range_matches = [
+            match
+            for match in CLOSE_RANGE_RE.finditer(opening)
+            if _realtime_match_is_valid(
+                opening,
+                match,
+                "closing_range",
+                getattr(article, "publish_date", None),
+            )
+        ]
+        range_match = (
+            max(closing_range_matches, key=lambda match: (match.start(), match.end()))
+            if closing_range_matches
+            else APPROX_RANGE_RE.search(opening)
+        )
         threshold_match = NEAR_THRESHOLD_RE.search(opening)
 
         market_closed_match = MARKET_CLOSED_RE.search(opening)

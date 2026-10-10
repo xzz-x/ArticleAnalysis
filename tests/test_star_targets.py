@@ -270,3 +270,69 @@ def test_historical_all_day_star_can_use_mo_dao_le_wording():
     )
     assert row is not None
     assert row.star == 5.9
+
+
+def test_2026_01_14_final_afternoon_close_overrides_midday_exact():
+    row = extract_realtime_observation_from_article(
+        title="［1月14日］指数估值数据",
+        publish_date="2026-01-14",
+        text=(
+            "# ［1月14日］指数估值数据\n"
+            "上午上涨，到中午收盘达到3.7星。"
+            "不过下午回落，收盘还在3.8星。"
+        ),
+    )
+    assert row is not None
+    assert row.star == 3.8
+    assert row.evidence_method == "closing_statement"
+
+
+def test_2026_04_13_final_closing_range_beats_future_conditional_exact():
+    row = extract_realtime_observation_from_article(
+        title="［4月13日］指数估值数据",
+        publish_date="2026-04-13",
+        text=(
+            "# ［4月13日］指数估值数据\n"
+            "到收盘，在4.0到3.9星边界上下。"
+            "如果明天继续上涨，也就回到3.9星了。"
+        ),
+    )
+    assert row is None
+
+
+def test_2026_07_14_final_closing_range_beats_morning_exact():
+    row = extract_realtime_observation_from_article(
+        title="［7月14日］指数估值数据",
+        publish_date="2026-07-14",
+        text=(
+            "# ［7月14日］指数估值数据\n"
+            "上午大盘下跌，回到4.1星。"
+            "不过到下午大盘又深V反弹起来。"
+            "到收盘，回到4.0-3.9星上下的位置。"
+        ),
+    )
+    assert row is None
+
+
+def test_historical_explicit_not_returned_star_is_rejected():
+    row = extract_realtime_observation_from_article(
+        title="［4月6日］指数估值数据",
+        publish_date="2021-04-06",
+        text=(
+            "# ［4月6日］指数估值数据\n"
+            "今天A股整体上涨，不过A股也没有回到4星级。"
+        ),
+    )
+    assert row is None
+
+
+def test_historical_distance_and_future_return_are_rejected():
+    row = extract_realtime_observation_from_article(
+        title="［3月30日］指数估值数据",
+        publish_date="2021-03-30",
+        text=(
+            "# ［3月30日］指数估值数据\n"
+            "今天市场上涨。A股整体距离4星级也不远，等回到4星级再继续行动。"
+        ),
+    )
+    assert row is None

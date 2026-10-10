@@ -1,0 +1,52 @@
+{
+  "version": "p2-candidate-2026-10-10",
+  "status": "frozen_for_prospective_validation",
+  "target_cutoff": "2026-08-31",
+  "prospective_start": "2026-09-01",
+  "price_proxy": {
+    "name": "A股全指",
+    "stockCode": "1000002",
+    "feature": "log_close"
+  },
+  "latent_score": {
+    "formula": "anchor_t + price_coefficient * log(price_t)",
+    "price_coefficient": -4.127707783337646,
+    "price_coefficient_fit_period": "2022-01-01..2024-12-31",
+    "refit_during_prospective_validation": false
+  },
+  "adaptive_anchor": {
+    "method": "mean",
+    "window_published_targets": 10,
+    "implied_anchor_formula": "published_star_t - price_coefficient * log(price_t)",
+    "information_set": "strictly prior published targets only",
+    "update_after_prediction": true,
+    "retune_during_prospective_validation": false
+  },
+  "publication_rule": {
+    "state_reference": "previously published star",
+    "threshold_star_up": 0.07,
+    "threshold_star_down": 0.06,
+    "on_threshold_cross": "round latent score to nearest 0.1 star",
+    "after_observation": "observed published target becomes state for next date",
+    "retune_during_prospective_validation": false
+  },
+  "last_observed_target_at_cutoff": {
+    "date": "2026-08-31",
+    "star": 4.1,
+    "evidence": "截止到收盘，还在4.1星"
+  },
+  "development_evidence": {
+    "preholdout_period": "2022-01-01..2024-12-31",
+    "preholdout_exact_mae": 0.02216981132075477,
+    "posthoc_2025_2026_exact_mae": 0.01832061068702294
+  },
+  "methodology_warning": "The adaptive-hysteresis architecture was proposed after some 2025-2026 results had already been inspected. Therefore 2025-2026 is not a pristine architecture-selection holdout for this candidate. Final confirmation must use genuinely unseen dates on or after 2026-09-01 with all architecture and numerical parameters frozen.",
+  "prohibited_during_prospective_validation": [
+    "refit price coefficient",
+    "change anchor window",
+    "change anchor statistic",
+    "change hysteresis thresholds",
+    "change price proxy based on prospective errors",
+    "exclude prospective dates because they are hard to predict"
+  ]
+}

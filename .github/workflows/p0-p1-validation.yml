@@ -9,6 +9,7 @@ on:
       - "research/**"
       - "tests/**"
       - "data/features/star_model_panel_2022_2026.csv"
+      - "data/verified/**"
       - ".github/workflows/p0-p1-validation.yml"
   push:
     branches:
@@ -34,12 +35,115 @@ jobs:
         run: pytest -q
       - name: Run locked P1 analysis
         run: python research/dynamic_price_residual_analysis.py
-      - name: Upload P1 outputs
+      - name: Run locked P2 discrete mechanics analysis
+        run: python research/p2_discrete_price_mechanics.py
+      - name: Run leakage-safe P2 online anchor analysis
+        run: python research/p2_online_anchor_analysis.py
+      - name: Run adaptive anchor plus hysteresis analysis
+        run: python research/p2_adaptive_hysteresis_analysis.py
+      - name: Run static price state-threshold analysis
+        run: python research/p2_static_state_threshold_analysis.py
+      - name: Run implied-anchor regime analysis
+        run: python research/p2_implied_anchor_regime_analysis.py
+      - name: Run 2022 granularity sensitivity analysis
+        run: python research/p2_2022_granularity_sensitivity.py
+      - name: Run interval-censored granularity model
+        run: python research/p2_granularity_interval_model.py
+      - name: Run monthly fixed-effect price-slope analysis
+        run: python research/p2_price_slope_fixed_effects.py
+      - name: Run officially disclosed factor model
+        run: python research/p2_disclosed_factor_model.py
+      - name: Search disclosed-factor valuation specifications
+        run: python research/p2_disclosed_factor_spec_search.py
+      - name: Calibrate equity-bond ratio to published anchors
+        run: python research/p2_equity_bond_ratio_calibration.py
+      - name: Run source-aligned Buffett and equity-bond model
+        run: python research/p2_source_aligned_core_model.py
+      - name: Run source-aligned CSI valuation model
+        run: python research/p2_source_aligned_valuation_model.py
+      - name: Run aggregate earnings-level anchor model
+        run: python research/p2_earnings_level_anchor_model.py
+      - name: Run earnings-timescale anchor decomposition
+        run: python research/p2_earnings_timescale_decomposition.py
+      - name: Run direct net-profit anchor model
+        run: python research/p2_direct_net_profit_anchor_model.py
+      - name: Run posthoc anchor change-point diagnostic
+        run: python research/p2_anchor_change_point_analysis.py
+      - name: Run nonlinear price-curve analysis
+        run: python research/p2_nonlinear_price_curve_analysis.py
+      - name: Quantify drift removed by quadratic price curve
+        run: python research/p2_quadratic_residual_regime_analysis.py
+      - name: Test official 20-percent-per-star rule
+        run: python research/p2_official_20pct_star_rule.py
+      - name: Run frozen prospective evaluator
+        run: python research/p2_prospective_validation.py
+      - name: Fetch 2021 CSI All Share history
+        run: python research/fetch_csi_all_share_prospective_prices.py --start 2021-01-01 --end 2021-12-31 --output data/derived/csi_all_share_2021_prices.csv --skip-anchor-check
+      - name: Run 2021 cross-cycle validation
+        run: python research/p2_2021_crosscycle_validation.py
+      - name: Upload P1 P2 outputs
         uses: actions/upload-artifact@v4
         with:
-          name: p1-price-residual-analysis
+          name: p1-p2-price-mechanics-analysis
           path: |
             data/derived/price_residual_factor_screen.csv
             data/derived/price_residual_holdout_metrics.csv
             data/derived/star_change_day_analysis.csv
             data/derived/price_residual_analysis_summary.json
+            data/derived/p2_discrete_price_mechanics_grid.csv
+            data/derived/p2_discrete_price_mechanics_holdout.csv
+            data/derived/p2_discrete_price_mechanics_summary.json
+            data/derived/p2_online_anchor_grid.csv
+            data/derived/p2_online_anchor_holdout.csv
+            data/derived/p2_online_anchor_summary.json
+            data/derived/p2_adaptive_hysteresis_grid.csv
+            data/derived/p2_adaptive_hysteresis_holdout.csv
+            data/derived/p2_adaptive_hysteresis_summary.json
+            data/derived/p2_static_state_threshold_grid.csv
+            data/derived/p2_static_state_threshold_holdout.csv
+            data/derived/p2_static_state_threshold_prospective.csv
+            data/derived/p2_static_state_threshold_summary.json
+            data/derived/p2_implied_anchor_series.csv
+            data/derived/p2_implied_anchor_period_summary.csv
+            data/derived/p2_implied_anchor_regime_summary.json
+            data/derived/p2_2022_granularity_sensitivity_rows.csv
+            data/derived/p2_2022_granularity_sensitivity_summary.json
+            data/derived/p2_granularity_interval_training_rows.csv
+            data/derived/p2_granularity_interval_model_summary.json
+            data/derived/p2_month_fixed_effect_anchor.csv
+            data/derived/p2_price_slope_fixed_effect_summary.json
+            data/derived/p2_disclosed_factor_model_predictions.csv
+            data/derived/p2_disclosed_factor_model_coefficients.csv
+            data/derived/p2_disclosed_factor_model_summary.json
+            data/derived/p2_disclosed_factor_spec_search_candidates.csv
+            data/derived/p2_disclosed_factor_spec_search_coefficients.csv
+            data/derived/p2_disclosed_factor_spec_search_summary.json
+            data/derived/p2_equity_bond_ratio_calibration_detail.csv
+            data/derived/p2_equity_bond_ratio_calibration_candidates.csv
+            data/derived/p2_equity_bond_ratio_calibration_summary.json
+            data/derived/p2_source_aligned_core_model_coefficients.csv
+            data/derived/p2_source_aligned_core_model_predictions.csv
+            data/derived/p2_source_aligned_core_model_summary.json
+            data/derived/p2_source_aligned_valuation_model_coefficients.csv
+            data/derived/p2_source_aligned_valuation_model_summary.json
+            data/derived/p2_earnings_level_anchor_model_coefficients.csv
+            data/derived/p2_earnings_level_anchor_model_summary.json
+            data/derived/p2_earnings_timescale_monthly.csv
+            data/derived/p2_earnings_timescale_summary.json
+            data/derived/p2_direct_net_profit_anchor_coefficients.csv
+            data/derived/p2_direct_net_profit_anchor_summary.json
+            data/derived/p2_anchor_change_point_segments.csv
+            data/derived/p2_anchor_change_point_summary.json
+            data/derived/p2_nonlinear_price_curve_coefficients.csv
+            data/derived/p2_nonlinear_price_curve_predictions.csv
+            data/derived/p2_nonlinear_price_curve_residual_by_star.csv
+            data/derived/p2_nonlinear_price_curve_summary.json
+            data/derived/p2_quadratic_residual_monthly.csv
+            data/derived/p2_quadratic_residual_regime_summary.json
+            data/derived/p2_official_20pct_star_rule_detail.csv
+            data/derived/p2_official_20pct_star_rule_summary.json
+            data/derived/p2_prospective_validation.csv
+            data/derived/p2_prospective_validation_summary.json
+            data/derived/csi_all_share_2021_prices.csv
+            data/derived/p2_2021_crosscycle_validation.csv
+            data/derived/p2_2021_crosscycle_validation_summary.json
