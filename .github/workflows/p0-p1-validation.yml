@@ -34,12 +34,17 @@ jobs:
         run: pytest -q
       - name: Run locked P1 analysis
         run: python research/dynamic_price_residual_analysis.py
-      - name: Upload P1 outputs
+      - name: Run locked P2 discrete mechanics analysis
+        run: python research/p2_discrete_price_mechanics.py
+      - name: Upload P1 P2 outputs
         uses: actions/upload-artifact@v4
         with:
-          name: p1-price-residual-analysis
+          name: p1-p2-price-mechanics-analysis
           path: |
             data/derived/price_residual_factor_screen.csv
             data/derived/price_residual_holdout_metrics.csv
             data/derived/star_change_day_analysis.csv
             data/derived/price_residual_analysis_summary.json
+            data/derived/p2_discrete_price_mechanics_grid.csv
+            data/derived/p2_discrete_price_mechanics_holdout.csv
+            data/derived/p2_discrete_price_mechanics_summary.json
