@@ -1,0 +1,46 @@
+{
+  "version": "p2-quadratic-price-challenger-2026-10-10",
+  "status": "frozen_challenger_for_next_prospective_window",
+  "development": {
+    "target_regime": "modern fine exact 0.1-star publications",
+    "start": "2022-05-31",
+    "end": "2024-12-31",
+    "degree_selection": "degrees 1-4 compared only on 2023 and 2024 expanding folds",
+    "selected_degree": 2,
+    "mean_preholdout_rounded_mae": 0.010141509433962513,
+    "mean_preholdout_exact_match": 0.8985849056603774
+  },
+  "price_proxy": {
+    "name": "A股全指",
+    "stockCode": "1000002"
+  },
+  "formula": {
+    "x": "-log(price)",
+    "x_mean": -8.436609170033808,
+    "x_sd": 0.0926879549868291,
+    "standardized": "5.167634819148887 + 0.34924658501074385*z - 0.015067876522003976*z^2",
+    "z": "(x - x_mean) / x_sd",
+    "equivalent_log_price": "-87.87979237218501 + 25.8259977480603*log(price) - 1.7539025201013774*log(price)^2",
+    "publication": "round continuous star to nearest 0.1"
+  },
+  "descriptive_not_clean_confirmation": {
+    "observed_2025_to_2026_08_31": {
+      "rounded_mae": 0.01730279898218855,
+      "exact_match": 0.8269720101781171
+    },
+    "first_future_2026_09_01_to_2026_10_09": {
+      "rounded_mae": 0.013043478260869905,
+      "exact_match": 0.8695652173913043,
+      "warning": "architecture was proposed after this window had already been inspected"
+    }
+  },
+  "clean_head_to_head_start_exclusive": "2026-10-09",
+  "prohibited": [
+    "change polynomial degree after future errors",
+    "refit x_mean, x_sd, or polynomial coefficients using post-2024 targets",
+    "add a rounding offset after future errors",
+    "add dynamic anchor or hysteresis based on future errors",
+    "switch price proxy based on future errors",
+    "exclude difficult future dates"
+  ]
+}
