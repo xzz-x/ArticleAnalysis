@@ -255,6 +255,52 @@ def transition_threshold_summary(panel: pd.DataFrame) -> list[dict[str, object]]
     return sorted(rows, key=lambda x: (x["from_star"], x["to_star"]))
 
 
+def regime_trigger_diagnostics(panel: pd.DataFrame) -> list[dict[str, object]]:
+    """Estimate empirical latent trigger gaps by period, star regime and direction."""
+    train = panel[panel["year"] <= 2024].copy()
+    fit = fit_linear(train, ["log_close"])
+
+    exact = panel[panel["target_status"] == "exact"].copy().sort_values("date")
+    exact["latent_star"] = predict_linear(exact, ["log_close"], fit)
+    exact["prev_star"] = exact["target_target_mid"].shift(1)
+    exact["prev_date"] = exact["date"].shift(1)
+    exact["gap_days"] = (exact["date"] - exact["prev_date"]).dt.days
+    exact["delta_star"] = exact["target_target_mid"] - exact["prev_star"]
+    exact = exact[
+        exact["gap_days"].between(1, 7)
+        & exact["delta_star"].abs().between(0.099999, 0.100001)
+    ].copy()
+    exact["period"] = np.where(exact["year"] <= 2024, "pre_holdout", "locked_holdout")
+    exact["regime"] = np.floor(exact["prev_star"]).astype(int).astype(str) + ".x"
+    exact["direction"] = np.where(exact["delta_star"] > 0, "star_up", "star_down")
+    exact["trigger_gap_star"] = np.where(
+        exact["delta_star"] > 0,
+        exact["latent_star"] - exact["prev_star"],
+        exact["prev_star"] - exact["latent_star"],
+    )
+
+    rows: list[dict[str, object]] = []
+    for (period, regime, direction), group in exact.groupby(
+        ["period", "regime", "direction"]
+    ):
+        values = group["trigger_gap_star"].dropna().to_numpy(dtype=float)
+        if len(values) == 0:
+            continue
+        rows.append(
+            {
+                "period": str(period),
+                "regime": str(regime),
+                "direction": str(direction),
+                "n": int(len(values)),
+                "median_trigger_gap_star": float(np.median(values)),
+                "mean_trigger_gap_star": float(np.mean(values)),
+                "q25_trigger_gap_star": float(np.quantile(values, 0.25)),
+                "q75_trigger_gap_star": float(np.quantile(values, 0.75)),
+            }
+        )
+    return sorted(rows, key=lambda x: (x["period"], x["regime"], x["direction"]))
+
+
 def main() -> None:
     panel = prepare_panel()
     grid = preholdout_grid(panel)
@@ -290,6 +336,7 @@ def main() -> None:
         },
         "holdoutMetrics": json.loads(metrics.to_json(orient="records")),
         "transitionThresholds": transition_threshold_summary(panel),
+        "regimeTriggerDiagnostics": regime_trigger_diagnostics(panel),
     }
 
     DERIVED.mkdir(parents=True, exist_ok=True)
