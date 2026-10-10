@@ -9,7 +9,7 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[1]
 SPEC = REPO / "research" / "p2_frozen_candidate.json"
 FUTURE_TARGET = REPO / "data" / "verified" / "star_target_prospective_2026_09_onward.csv"
-FUTURE_PRICE = REPO / "data" / "verified" / "csi_all_share_prospective_2026_08_31_2026_10_09.csv"
+FUTURE_PRICE = REPO / "data" / "verified" / "csi_all_share_prospective_2026_08_31_2026_10_09.csv"\nCHALLENGER = REPO / "research" / "p2_static_round_challenger.json"
 
 
 def load_spec() -> dict:
@@ -64,3 +64,17 @@ def test_verified_prospective_price_snapshot_matches_frozen_proxy() -> None:
 
     future_price_dates = set(price.loc[price["date"] >= pd.Timestamp(spec["prospective_start"]), "date"])
     assert set(target["date"]).issubset(future_price_dates)
+
+
+def test_static_round_challenger_is_frozen_for_next_window() -> None:
+    challenger = json.loads(CHALLENGER.read_text(encoding="utf-8"))
+
+    assert challenger["version"] == "p2-static-round-challenger-2026-10-10"
+    assert challenger["status"] == "frozen_challenger_for_next_prospective_window"
+    assert challenger["clean_head_to_head_start_exclusive"] == "2026-10-09"
+    assert challenger["latent_score"]["intercept"] == 39.95198926812065
+    assert challenger["latent_score"]["price_coefficient"] == -4.127707783337646
+    assert challenger["latent_score"]["refit"] is False
+    assert challenger["publication_rule"]["method"] == "round_to_nearest_0.1"
+    assert challenger["publication_rule"]["step"] == 0.1
+    assert challenger["publication_rule"]["retune"] is False
