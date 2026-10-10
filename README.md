@@ -12,14 +12,19 @@
 research/CURRENT_RESEARCH_STATE.md
 ```
 
-冻结候选模型：
+冻结候选与首轮真正前瞻验证：
 
 ```text
 research/p2_frozen_candidate.json
+research/p2_static_round_challenger.json
+research/p2_first_prospective_validation.md
 ```
 
-当前 P2 已从“多因子找解释”推进到“**价格驱动 latent star + 动态 anchor + hysteresis 发布规则**”。
-现阶段最大的未解决问题不是继续找 PB / GDP / ROE 因子，而是缺少 **2026-09-01 以后真正未参与模型开发的前瞻数据**。
+当前 P2 已完成第一段真正未见未来窗口（2026-09-01 至 2026-10-09，23 个交易日）。
+价格主导假设继续得到支持，但原 frozen adaptive candidate 并未在该窗口胜过更简单的
+`static price + nearest 0.1 rounding`。当前最大问题已经变成：**dynamic anchor / hysteresis
+究竟是长期真实机制，还是主要解释了此前 2025–2026 的阶段性漂移**。后续从 2026-10-09
+之后继续保持两套模型不调参做 head-to-head prospective validation。
 较早 P0/P1 段落保留用于研究过程追踪；若数值或结论与当前快照冲突，以
 `research/CURRENT_RESEARCH_STATE.md` 和冻结 spec 为准。
 
