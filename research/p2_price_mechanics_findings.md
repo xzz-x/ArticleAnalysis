@@ -238,3 +238,32 @@ price-driven latent score
 ```
 
 This makes dynamic anchor estimation the highest-priority mechanism for the next research stage.
+
+## Frozen prospective candidate
+
+The current candidate is frozen after the 2026-08-31 Target boundary so that genuinely unseen dates can be used for confirmation without further architecture or parameter tuning.
+
+Frozen specification:
+
+```text
+price proxy                 = A股全指 1000002
+price coefficient           = -4.127707783337646
+anchor                       = mean implied anchor from prior 10 published exact targets
+star-up hysteresis threshold = 0.07
+star-down threshold          = 0.06
+publication step             = 0.1 star
+last observed target         = 2026-08-31, 4.1 star
+prospective validation start = 2026-09-01
+```
+
+The machine-readable definition is stored in `research/p2_frozen_candidate.json` and the one-step evaluator is `research/p2_prospective_validation.py`.
+
+During prospective validation the following are explicitly prohibited:
+
+- refitting the price slope;
+- changing the 10-observation window or anchor statistic;
+- changing hysteresis thresholds;
+- changing the price proxy because of future errors;
+- excluding future dates because they are difficult to predict.
+
+The evaluator intentionally returns an awaiting-data status while the committed panel contains no dates after 2026-08-31. This creates a clean boundary for the next research stage.
