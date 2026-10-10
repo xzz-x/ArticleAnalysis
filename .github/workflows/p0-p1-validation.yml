@@ -69,6 +69,8 @@ jobs:
         run: python research/p2_direct_net_profit_anchor_model.py
       - name: Run posthoc anchor change-point diagnostic
         run: python research/p2_anchor_change_point_analysis.py
+      - name: Run nonlinear price-curve analysis
+        run: python research/p2_nonlinear_price_curve_analysis.py
       - name: Run frozen prospective evaluator
         run: python research/p2_prospective_validation.py
       - name: Upload P1 P2 outputs
@@ -124,5 +126,9 @@ jobs:
             data/derived/p2_direct_net_profit_anchor_summary.json
             data/derived/p2_anchor_change_point_segments.csv
             data/derived/p2_anchor_change_point_summary.json
+            data/derived/p2_nonlinear_price_curve_coefficients.csv
+            data/derived/p2_nonlinear_price_curve_predictions.csv
+            data/derived/p2_nonlinear_price_curve_residual_by_star.csv
+            data/derived/p2_nonlinear_price_curve_summary.json
             data/derived/p2_prospective_validation.csv
             data/derived/p2_prospective_validation_summary.json
