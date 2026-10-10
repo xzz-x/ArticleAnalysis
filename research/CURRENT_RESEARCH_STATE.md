@@ -1,6 +1,6 @@
 # 银行螺丝钉 A 股投资星级复刻：当前研究状态
 
-> 更新时间：2026-10-10  
+> 更新时间：2026-10-11  
 > 当前研究分支：`research/p2-price-mechanics`  
 > 稳定生产基线：`main`  
 > 当前 P2 PR：#3（Draft，尚未合并 main）  
@@ -783,3 +783,122 @@ research/p2_2021_crosscycle_validation.py
 3. 判断小程序历史序列是否经过统一回溯重算；
 4. 在版本化历史 Target 上再研究长期 anchor 与盈利水平的关系。
 
+
+
+---
+
+## 19. P3：「今天几星」小程序入口与历史 backcast 时间线
+
+已从银行螺丝钉公众号原始归档 HTML 中恢复「今天几星」小程序唯一标识：
+
+```text
+nickname = 今天几星
+appid    = wx132d40a0c36674a6
+path     = pages/discovery/index
+```
+
+同一 AppID / path 在 2023-05-24、2023-07-17、2024-04-24、2024-07-20、2024-08-27、2024-09-03 等归档文章中重复出现。
+
+更重要的是，历史功能存在明确的版本演化：
+
+```text
+2023-05-24
+小程序首发。
+当时描述的是交易日 09:30 / 12:00 / 14:30 / 16:00 固定时点星级播报；
+文章同时说明后续功能会继续开发。
+
+2023-07-17
+官方明确写“上线了一个新功能：历史星级查询”。
+首页顶部进入“查看历史星级”。
+当时 UI 可查询 2014 年至当时的星级和中证全指点位。
+同时明确写：2014 年以前的数据后台也有，等待优化后更新。
+
+2024-07-20
+最新星级已升级为每分钟更新；历史星级仍作为独立功能保留。
+
+2026
+公开使用说明已描述为可查询 2012 年以来任意交易日。
+```
+
+因此现在可以确认：
+
+> **小程序历史星级是 2023 年以后逐步上线、补齐和展示的 retrospective dataset。**
+
+这进一步强化现有版本治理原则：
+
+```text
+contemporaneous_published_star
+!=
+current_app_backcast_star
+```
+
+即使取得 2012-2021 全量小程序历史，也不能直接覆盖当年真实发布 Target。
+
+### API 调研现状
+
+公开索引中暂未找到：
+
+- AppID 对应的可下载 wxapkg；
+- 已反编译源码；
+- request 合法域名白名单；
+- 明文历史星级 API。
+
+仅凭 AppID 和入口 path 还无法可靠枚举生产接口。
+
+下一步最有价值的技术动作是：
+
+1. 在正常用户会话中打开历史星级图；
+2. 导出该操作产生的 HAR / 网络请求记录；
+3. 从运行时请求中识别历史序列 endpoint；
+4. 再判断 endpoint 是否支持日期区间或整段历史批量请求。
+
+已新增：
+
+```text
+research/p3_today_star_miniprogram_findings.md
+research/extract_today_star_har.py
+tests/test_today_star_har_extractor.py
+```
+
+HAR 工具只做候选筛选，并主动隐藏 cookie / authorization / token 等敏感字段，不涉及 Model A / Model B 的任何参数修改。
+
+### 公共历史源的备选路线
+
+如果短期内仍拿不到运行时接口，继续用 contemporaneous 公开源扩展跨周期锚点。
+
+目前可直接确认的例子包括：
+
+```text
+2018-12-19
+银行螺丝钉雪球文章：
+“目前市场处于4星级”
+并明确说明当时四/五星属于经验判断、没有特别严格的说法。
+
+2020-09-24
+银行螺丝钉雪球文章：
+市场距离4星级不到2%。
+这是 threshold evidence，不应擅自转换成 exact star。
+
+2020-07-14
+雪球基金转述银行螺丝钉：
+“A股市场接近3星级”。
+这是二手 contemporaneous 证据，只适合作为候选锚点，不进入 exact Target。
+```
+
+因此长期 Target 恢复继续遵守：
+
+```text
+direct closing exact
+>
+direct closing range / bucket
+>
+direct threshold statement
+>
+secondary contemporaneous quote
+>
+retrospective statement
+>
+current-app backcast
+```
+
+任何 threshold / secondary evidence 均不因模型 residual 大小而被升级为 exact。
