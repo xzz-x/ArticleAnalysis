@@ -312,3 +312,27 @@ def test_2026_07_14_final_closing_range_beats_morning_exact():
         ),
     )
     assert row is None
+
+
+def test_historical_explicit_not_returned_star_is_rejected():
+    row = extract_realtime_observation_from_article(
+        title="［4月6日］指数估值数据",
+        publish_date="2021-04-06",
+        text=(
+            "# ［4月6日］指数估值数据\n"
+            "今天A股整体上涨，不过A股也没有回到4星级。"
+        ),
+    )
+    assert row is None
+
+
+def test_historical_distance_and_future_return_are_rejected():
+    row = extract_realtime_observation_from_article(
+        title="［3月30日］指数估值数据",
+        publish_date="2021-03-30",
+        text=(
+            "# ［3月30日］指数估值数据\n"
+            "今天市场上涨。A股整体距离4星级也不远，等回到4星级再继续行动。"
+        ),
+    )
+    assert row is None
