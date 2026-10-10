@@ -49,6 +49,8 @@ jobs:
         run: python research/p2_2022_granularity_sensitivity.py
       - name: Run interval-censored granularity model
         run: python research/p2_granularity_interval_model.py
+      - name: Run monthly fixed-effect price-slope analysis
+        run: python research/p2_price_slope_fixed_effects.py
       - name: Run frozen prospective evaluator
         run: python research/p2_prospective_validation.py
       - name: Upload P1 P2 outputs
@@ -80,5 +82,7 @@ jobs:
             data/derived/p2_2022_granularity_sensitivity_summary.json
             data/derived/p2_granularity_interval_training_rows.csv
             data/derived/p2_granularity_interval_model_summary.json
+            data/derived/p2_month_fixed_effect_anchor.csv
+            data/derived/p2_price_slope_fixed_effect_summary.json
             data/derived/p2_prospective_validation.csv
             data/derived/p2_prospective_validation_summary.json
