@@ -163,3 +163,110 @@ Current hierarchy of evidence:
 5. **Unresolved:** whether the current app historical series is fully contemporaneous or partly normalized retrospectively.
 
 The next mechanism work should therefore focus on explaining the long-run anchor with exogenous earnings / valuation data, while the frozen prospective models continue unchanged.
+
+
+## 8. Direct earnings-level tests
+
+Two separate tests were added to distinguish the author's long-run economic explanation from the daily production rule.
+
+### 8.1 Daily price + aggregate earnings-level model
+
+Aggregate earnings level was approximated as:
+
+```text
+earnings_level = A股全指 close / 中证全指 000985 pe_ttm.mcw
+```
+
+The model tested:
+
+```text
+star =
+a
++ b * [-log(price)]
++ c * log(earnings_level)
+```
+
+with economically oriented nonnegative coefficients.
+
+Expanding development results:
+
+| Fold | Price-only rounded MAE | Price + earnings rounded MAE |
+| --- | ---: | ---: |
+| 2022 -> 2023 | 0.00991 | **0.00755** |
+| 2023 -> 2024 | 0.03915 | **0.03585** |
+| Mean | 0.02453 | **0.02170** |
+
+The earnings-level term is active in both individual folds, but its raw coefficient shrinks strongly:
+
+```text
+2022 -> 2023: ~0.41
+2023 -> 2024: ~0.14
+full 2022-2024 fit: 0.00
+```
+
+The contemporaneous price coefficient remains around 4.
+
+Therefore the data do not support the pure-valuation restriction in which price and earnings level enter with approximately equal and opposite log coefficients.
+
+### 8.2 Monthly earnings-timescale decomposition
+
+A stronger structural test avoided fitting a new earnings coefficient.
+
+For a fixed price sensitivity `k`:
+
+```text
+anchor_t = star_t + k * log(price_t)
+```
+
+If the slow anchor were driven primarily by aggregate earnings level in the same one-for-one way implied by a simple PE identity, then:
+
+```text
+anchor_t - k * log(earnings_level_t)
+```
+
+should be more stable than the raw anchor.
+
+It is not.
+
+Using the frozen price slope `k = 4.1277`:
+
+```text
+2022-06..2024:
+raw monthly anchor SD          = 0.0428
+earnings-adjusted anchor SD    = 0.2375
+
+2025..2026-08:
+raw monthly anchor SD          = 0.0473
+earnings-adjusted anchor SD    = 0.1547
+```
+
+Using the pre-holdout within-month price slope `k = 3.6485`:
+
+```text
+2022-06..2024:
+raw monthly anchor SD          = 0.0159
+earnings-adjusted anchor SD    = 0.2407
+
+2025..2026-08:
+raw monthly anchor SD          = 0.0998
+earnings-adjusted anchor SD    = 0.1943
+```
+
+The adjustment therefore increases, rather than reduces, anchor variation.
+
+### Interpretation
+
+This does **not** contradict the author's statement that long-run earnings growth raises the index level compatible with the same valuation/star state.
+
+It means only that:
+
+> the short/medium-horizon star anchor observed from 2022-2026 cannot be represented as a one-for-one function of the currently reconstructed `price / PE` earnings level.
+
+The official 2013 / 2018 / 2024 examples concern multi-year structural growth. The available 2022-2026 fine-star sample is too short to identify that long-run relation cleanly.
+
+Current working hierarchy:
+
+1. daily star movement: overwhelmingly price-driven;
+2. medium-horizon 2025-2026 drift: not explained by the reconstructed earnings level;
+3. multi-year same-star point-level increase: official evidence attributes this mainly to earnings growth;
+4. testing item 3 requires a longer, version-aware historical series rather than more tuning on 2022-2026.
