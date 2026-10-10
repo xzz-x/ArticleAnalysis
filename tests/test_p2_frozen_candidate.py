@@ -10,7 +10,7 @@ REPO = Path(__file__).resolve().parents[1]
 SPEC = REPO / "research" / "p2_frozen_candidate.json"
 FUTURE_TARGET = REPO / "data" / "verified" / "star_target_prospective_2026_09_onward.csv"
 FUTURE_PRICE = REPO / "data" / "verified" / "csi_all_share_prospective_2026_08_31_2026_10_09.csv"
-CHALLENGER = REPO / "research" / "p2_static_round_challenger.json"
+CHALLENGER = REPO / "research" / "p2_static_round_challenger.json"\nQUADRATIC_CHALLENGER = REPO / "research" / "p2_quadratic_price_challenger.json"
 
 
 def load_spec() -> dict:
@@ -79,3 +79,19 @@ def test_static_round_challenger_is_frozen_for_next_window() -> None:
     assert challenger["publication_rule"]["method"] == "round_to_nearest_0.1"
     assert challenger["publication_rule"]["step"] == 0.1
     assert challenger["publication_rule"]["retune"] is False
+
+
+def test_quadratic_price_challenger_is_frozen_for_next_window() -> None:
+    challenger = json.loads(QUADRATIC_CHALLENGER.read_text(encoding="utf-8"))
+
+    assert challenger["version"] == "p2-quadratic-price-challenger-2026-10-10"
+    assert challenger["status"] == "frozen_challenger_for_next_prospective_window"
+    assert challenger["development"]["selected_degree"] == 2
+    assert challenger["clean_head_to_head_start_exclusive"] == "2026-10-09"
+    assert challenger["formula"]["x_mean"] == -8.436609170033808
+    assert challenger["formula"]["x_sd"] == 0.0926879549868291
+    assert (
+        challenger["formula"]["standardized"]
+        == "5.167634819148887 + 0.34924658501074385*z - 0.015067876522003976*z^2"
+    )
+    assert challenger["formula"]["publication"] == "round continuous star to nearest 0.1"
