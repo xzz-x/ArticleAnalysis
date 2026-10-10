@@ -1,0 +1,37 @@
+{
+  "version": "p2-static-round-challenger-2026-10-10",
+  "status": "frozen_challenger_for_next_prospective_window",
+  "promotion_context": {
+    "first_genuine_prospective_window": "2026-09-01..2026-10-09",
+    "reason": "A pre-existing static price plus nearest-0.1 model class outperformed the original frozen adaptive candidate on the first genuine prospective window.",
+    "first_window_is_confirmatory_for_this_challenger": false,
+    "next_confirmatory_window_rule": "Only dates strictly after 2026-10-09 may be used as clean confirmation for challenger promotion."
+  },
+  "price_proxy": {
+    "name": "A股全指",
+    "stockCode": "1000002",
+    "post_2005_point_series": "000985.SH"
+  },
+  "latent_score": {
+    "formula": "intercept + price_coefficient * log(price_t)",
+    "intercept": 39.95198926812065,
+    "price_coefficient": -4.127707783337646,
+    "fit_period": "2022-01-01..2024-12-31",
+    "refit": false
+  },
+  "publication_rule": {
+    "method": "round_to_nearest_0.1",
+    "step": 0.1,
+    "uses_previous_published_star": false,
+    "uses_dynamic_anchor": false,
+    "retune": false
+  },
+  "clean_head_to_head_start_exclusive": "2026-10-09",
+  "prohibited": [
+    "refit intercept or price coefficient",
+    "add an offset to rounding after seeing future errors",
+    "add hysteresis based on future errors",
+    "switch price proxy based on future errors",
+    "exclude difficult future dates"
+  ]
+}
