@@ -38,6 +38,8 @@ jobs:
         run: python research/p2_discrete_price_mechanics.py
       - name: Run leakage-safe P2 online anchor analysis
         run: python research/p2_online_anchor_analysis.py
+      - name: Run adaptive anchor plus hysteresis analysis
+        run: python research/p2_adaptive_hysteresis_analysis.py
       - name: Upload P1 P2 outputs
         uses: actions/upload-artifact@v4
         with:
@@ -53,3 +55,6 @@ jobs:
             data/derived/p2_online_anchor_grid.csv
             data/derived/p2_online_anchor_holdout.csv
             data/derived/p2_online_anchor_summary.json
+            data/derived/p2_adaptive_hysteresis_grid.csv
+            data/derived/p2_adaptive_hysteresis_holdout.csv
+            data/derived/p2_adaptive_hysteresis_summary.json
