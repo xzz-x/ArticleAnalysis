@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from research.dynamic_price_residual_analysis import (
+from dynamic_price_residual_analysis import (
     DERIVED,
     fit_linear,
     interval_error,
