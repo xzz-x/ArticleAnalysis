@@ -24,101 +24,134 @@
 
 ## 2. 当前最重要的结论
 
-截至目前，证据**不支持**“星级主要由 PE / PB / GDP / ROE / 股债性价比等多因子线性加权直接计算”。
+截至目前，最稳定的结论仍然是：
 
-目前最有解释力的机制是：
+> **A 股投资星级的短期变化主要由 A 股市场价格驱动。**
+
+当前没有证据支持“PE / PB / GDP / ROE / 股债性价比等多个基本面指标直接线性加权生成每日星级”。
+
+但第一段真正未见未来数据（2026-09-01 至 2026-10-09，23 个交易日）改变了对 P2 复杂机制的判断：
+
+- 冻结的 `adaptive anchor + hysteresis` 候选前瞻 MAE = **0.02174**；
+- 23 天中 **18 天精确命中（78.26%）**；
+- **23/23 天误差都不超过 0.1 星**；
+- 但预先存在的更简单模型 `static price + nearest 0.1 rounding` 在同一未来窗口 MAE = **0.01304**，精确命中 **20/23（86.96%）**。
+
+因此当前不能再写：
+
+> dynamic anchor + hysteresis 已经是最有可能的真实生产公式。
+
+更准确的当前结论是：
 
 ```text
-市场价格
-   ↓
-price-driven continuous latent star
-   +
-slowly-moving anchor
-   ↓
+核心确定项：
+A股全指价格
+    ↓
 continuous latent star
-   ↓
-state-dependent publication threshold / hysteresis
-   ↓
-公开的 0.1 星离散星级
+
+仍待区分的发布机制：
+A. static anchor + nearest 0.1 rounding
+B. slowly-moving anchor + hysteresis
 ```
 
-可以概括为：
+**价格主导已经比较稳；anchor 是否需要动态调整、hysteresis 是否是稳定真实机制，目前仍未定。**
 
-> **星级主体由 A 股市场价格驱动，但价格到星级的映射基准会缓慢漂移；公开星级还存在一定状态黏滞 / 发布阈值，因此并不是连续理论星级变化一点就立刻调整 0.1 星。**
+详细首轮前瞻验证见：
 
-当前研究重点已经从“继续找更多基本面因子”转向：
-
-1. 动态 anchor 的真实机制；
-2. 发布星级的状态阈值；
-3. 在真正未见未来数据上的前瞻验证。
+```text
+research/p2_first_prospective_validation.md
+```
 
 ---
 
 ## 3. 当前最大的研究问题
 
-### 最大问题：缺乏真正独立、从未参与模型开发的未来验证期
+### 最大问题：简单模型和复杂模型，谁能在更长的真正未来数据中持续胜出？
 
-2022–2024 最初用于训练和 expanding pre-holdout validation。
-
-2025–2026 原本作为 locked holdout，但在研究过程中，我们已经观察过这一时期的模型表现，并据此继续提出了：
-
-- online rolling anchor；
-- adaptive anchor + hysteresis。
-
-因此：
-
-> **2025–2026 已不能再作为“组合架构选择”的 pristine holdout。**
-
-虽然当前组合模型的全部数值参数仍然只在 2022–2024 上选择，但模型架构本身是在看过部分 2025–2026 结果后提出的。
-
-所以目前真正缺少的是：
+此前最大的瓶颈是没有真正未见未来数据。这个问题已经解决了第一步：
 
 ```text
-完全冻结模型
-    ↓
-获得 2026-09-01 以后新数据
-    ↓
-不调任何参数
-    ↓
-直接前瞻预测
-    ↓
-检验真实泛化能力
+冻结日期：2026-08-31
+真正未来窗口：2026-09-01 ～ 2026-10-09
+交易日 exact Target：23 个
 ```
 
-这已经是当前研究最关键的瓶颈。
+这一窗口没有用于原候选参数调整。
+
+结果出现了一个关键分歧：
+
+| 模型 | 首轮真正 prospective MAE |
+| --- | ---: |
+| **Static price + nearest 0.1** | **0.01304** |
+| Frozen adaptive anchor + hysteresis | 0.02174 |
+| Static continuous price | 0.02206 |
+| Online-anchor continuous | 0.02343 |
+| Previous-star persistence | 0.03913 |
+
+所以现在最大的研究问题已经变成：
+
+> **2025–2026 历史阶段 adaptive 模型的明显优势，是长期真实机制，还是对当时 anchor 漂移的阶段性拟合？**
+
+不能用这 23 天重新调参数回答这个问题。
+
+正确方法是：
+
+1. 保留原 frozen adaptive candidate，不改任何参数；
+2. 同时保留 static price + nearest-0.1 作为简单 challenger；
+3. 从 2026-10-09 之后继续收集真正未见数据；
+4. 做连续 head-to-head；
+5. 只有跨更长窗口、不同市场波动阶段仍稳定胜出，才提升为主要 replica 机制。
+
+当前最重要的是**模型简化检验和持续前瞻验证**，不是继续堆新变量。
 
 ---
 
 ## 4. Target 数据当前状态
 
-统一 Target 当前覆盖：
+历史统一 Target 仍覆盖：
 
 ```text
 2022-01-04 ～ 2026-08-31
 ```
 
-当前已确认的重要 Target 修正：
+另外已经建立独立的、严格 post-freeze 的未来验证集：
+
+```text
+data/verified/star_target_prospective_2026_09_onward.csv
+```
+
+当前包含：
+
+```text
+2026-09-01 ～ 2026-10-09
+23 个 A 股交易日
+23 个 exact closing star Target
+```
+
+对应价格证据：
+
+```text
+data/verified/csi_all_share_prospective_2026_08_31_2026_10_09.csv
+```
+
+价格口径是 `000985.SH` 中证全指点位，与冻结的 A股全指代理口径一致；重叠日：
+
+```text
+2026-08-31 close = 5969.33
+```
+
+与原冻结序列完全匹配。
+
+重要历史 Target 修正仍然有效：
 
 | 日期 | 原标签 | 当前处理 |
 | --- | --- | --- |
-| 2026-01-14 | 3.7 exact | **3.8 exact**，最终下午收盘覆盖中午值 |
+| 2026-01-14 | 3.7 exact | **3.8 exact** |
 | 2026-04-13 | 3.9 exact | **3.9–4.0 range** |
-| 2026-07-14 | 4.1 exact | **3.9–4.0 range**，最终收盘区间覆盖上午 4.1 |
+| 2026-07-14 | 4.1 exact | **3.9–4.0 range** |
 | 2025-08-26 | legacy 4.2 exact | **threshold-only，training weight = 0** |
 
-2025-08-26 的现存直接证据只能说明：
-
-> “大盘摸到 4.2 星”
-
-不能证明当天**收盘就是 4.2 星**，因此不再作为 exact training label。
-
-当前训练逻辑：
-
-- exact：可训练；
-- range：按区间误差训练 / 评价；
-- threshold-only：不可作为精确训练 Target；
-- market closed：排除；
-- 明确收盘证据 > 收盘区间 > current/opening > intraday。
+未来 Target 与历史训练 Target 分开保存，避免把真正 prospective evidence 悄悄回灌进训练集。
 
 ---
 
@@ -268,385 +301,298 @@ price proxy / Target noise
 
 ---
 
-## 8. 当前最关键发现：动态 anchor
+## 8. 历史阶段的重要发现：动态 anchor
 
-定义某个已发布星级对应的 implied anchor：
+历史分析中，动态 anchor 曾带来很明显的改善。
+
+定义 implied anchor：
 
 [
 A_i = S_i - eta log(P_i)
 ]
 
-因为：
+其中：
 
 [
 eta=-4.127707783337646
 ]
 
-所以也可写成：
-
-[
-A_i=S_i+4.127707783337646log(P_i)
-]
-
-在每天预测之前，只使用**此前已经发布的星级**估计当前 anchor。
-
-pre-holdout 自动选择出的规则：
+2022–2024 pre-holdout 选择出的 online rule 是：
 
 ```text
 最近 10 个已发布 exact star 的 implied anchor
 取 mean
 ```
 
-即：
-
-[
-A_t =
-rac{1}{10}
-sum_{i=t-10}^{t-1}
-left(
-S_i-etalog P_i
-ight)
-]
-
-然后当天连续潜在星级：
-
-[
-S_t^*=A_t+etalog P_t
-]
-
-即：
-
-[
-oxed{
-S_t^*=A_t-4.127707783337646log P_t
-}
-]
-
-online anchor 模型结果：
+2025–2026 历史评估：
 
 ```text
-2023–2024 pre-holdout exact MAE ≈ 0.03567
-
-2025–2026:
 static price-only exact MAE = 0.04548
 online anchor exact MAE      = 0.02841
-relative improvement         = 37.5%
-exact error <= 0.1 star      = 100%
+adaptive+hysteresis          = 0.01832  (post-hoc architecture)
 ```
 
-这是目前比 PB / GDP / ROE 等多因子调整强得多的证据。
+这曾提示 anchor drift 可能非常重要。
+
+但是第一段真正 prospective data 中：
+
+```text
+static continuous      MAE = 0.02206
+online-anchor continuous MAE = 0.02343
+```
+
+online anchor 并没有改善 static continuous。
+
+因此现在应把 dynamic anchor 定义为：
+
+> **一个具有较强历史解释力、但尚未通过跨窗口前瞻优越性验证的机制假设。**
+
+不能再把它当作已确认事实。
 
 ---
 
-## 9. 当前最佳候选：adaptive anchor + hysteresis
+## 9. 原冻结候选：adaptive anchor + hysteresis
 
-目前最强的候选结构：
-
-```text
-当前 A股全指价格
-      +
-最近 10 个已发布星级反推的 rolling anchor
-      ↓
-continuous latent star
-      ↓
-与上一已发布星级比较
-      ↓
-hysteresis
-      ↓
-公开 0.1 星级
-```
-
-冻结参数：
-
-```text
-price coefficient = -4.127707783337646
-
-anchor:
-  window = previous 10 published exact stars
-  statistic = mean
-
-publication threshold:
-  star-up   = +0.07
-  star-down = -0.06
-
-publication step:
-  0.1 star
-```
-
-完整计算逻辑：
-
-### 第一步：rolling anchor
-
-[
-A_t =
-rac{1}{10}
-sum_{i=t-10}^{t-1}
-left(
-S_i+4.127707783337646log P_i
-ight)
-]
-
-### 第二步：连续理论星级
-
-[
-S_t^*=A_t-4.127707783337646log P_t
-]
-
-### 第三步：发布规则
-
-设上一已发布星级为 (S_{t-1})。
-
-如果：
-
-[
-S_t^*-S_{t-1}ge0.07
-]
-
-则：
-
-[
-S_t=operatorname{round}_{0.1}(S_t^*)
-]
-
-如果：
-
-[
-S_t^*-S_{t-1}le-0.06
-]
-
-则：
-
-[
-S_t=operatorname{round}_{0.1}(S_t^*)
-]
-
-否则：
-
-[
-S_t=S_{t-1}
-]
-
----
-
-## 10. 当前候选表现
-
-| 模型 | exact MAE |
-| --- | ---: |
-| Static price-only | 0.04548 |
-| Fixed hysteresis | 0.04275 |
-| Online rolling anchor | 0.02841 |
-| **Adaptive anchor + hysteresis** | **0.01832** |
-
-adaptive anchor + hysteresis：
-
-```text
-2022–2024 architecture-development / pre-holdout exact MAE ≈ 0.02217
-2025–2026 exploratory/post-hoc exact MAE              ≈ 0.01832
-```
-
-相比 static price-only：
-
-```text
-约下降 59.7%
-```
-
-相比 online-anchor-only：
-
-```text
-约进一步下降 35.5%
-```
-
-### 重要限制
-
-**0.01832 不能当作最终严格 out-of-sample 成绩。**
-
-因为 adaptive anchor + hysteresis 这个组合架构是在已经观察部分 2025–2026 结果之后提出的。
-
-所以当前候选只能称为：
-
-```text
-frozen prospective candidate
-```
-
-而不是：
-
-```text
-confirmed final replica
-```
-
----
-
-## 11. 已冻结的前瞻候选
-
-机器可读定义：
+原 frozen candidate 保持完全不变：
 
 ```text
 research/p2_frozen_candidate.json
 ```
 
-前瞻 evaluator：
+参数：
 
 ```text
-research/p2_prospective_validation.py
+price coefficient = -4.127707783337646
+anchor window      = prior 10 published exact stars
+anchor statistic   = mean
+star-up threshold  = +0.07
+star-down threshold= -0.06
+publication step   = 0.1
+freeze cutoff      = 2026-08-31
 ```
 
-冻结边界：
+它的第一段真正前瞻结果：
 
 ```text
-Target cutoff      = 2026-08-31
-Prospective start  = 2026-09-01
-Last observed star = 4.1
+n = 23
+MAE = 0.02174
+RMSE = 0.04663
+exact match = 78.26%
+within 0.1 star = 100%
+max error = 0.1
 ```
 
-从冻结开始，前瞻验证阶段**禁止**：
-
-- 重新拟合 (eta)；
-- 修改 10 个星级窗口；
-- mean 改 median；
-- 调整 +0.07 / -0.06；
-- 因未来误差不好而切换价格 proxy；
-- 删除难预测日期；
-- 看完未来误差后再回头改模型。
-
-当前 evaluator 状态：
+真实星级变化日有 9 天，模型只预测变化 4 天：
 
 ```text
-prospectiveRows   = 0
-observedExactRows = 0
-exactMae          = null
-
-status =
-awaiting_genuinely_unseen_price_and_target_data
+change recall     = 44.44%
+change precision  = 100%
 ```
 
-现有 Google Drive corpus 尚未检索到可靠的 2026-09 / 2026-10 新 A 股指数估值文章，因此目前没有污染这个未来验证窗口。
+说明冻结 hysteresis **偏保守**：
+
+- 没有错误触发不存在的变化；
+- 但漏掉 5 次真实 0.1 星变化。
+
+漏掉日期：
+
+```text
+2026-09-04  predicted 4.1, actual 4.2
+2026-09-10  predicted 4.1, actual 4.2
+2026-09-15  predicted 4.2, actual 4.3
+2026-09-18  predicted 4.2, actual 4.1
+2026-10-08  predicted 4.3, actual 4.4
+```
+
+**禁止根据这些错误把 0.07 / 0.06 调小。**
 
 ---
 
-## 12. 当前最大未知：真实 anchor 到底是什么
+## 10. 第一段真正前瞻模型比较
 
-rolling 10-star mean 在预测上表现很好，但它只是**复刻方法**，不一定就是银行螺丝钉真实内部公式。
+同一 23 日窗口：
 
-真实 anchor 可能来自：
+| 模型 | MAE | Exact match | Max error |
+| --- | ---: | ---: | ---: |
+| **Static price + nearest 0.1 rounding** | **0.01304** | **86.96%** | 0.1 |
+| Frozen adaptive + hysteresis | 0.02174 | 78.26% | 0.1 |
+| Static continuous | 0.02206 | — | 0.0625 |
+| Online-anchor continuous | 0.02343 | — | 0.0654 |
+| Previous-star persistence | 0.03913 | 60.87% | 0.1 |
 
-- 全市场盈利长期增长；
-- 指数成分股变化；
-- PE / PB 估值中枢长期变化；
-- 盈利 / GDP；
-- 人工定期重新标定；
-- 某种长期估值分位；
-- 多种慢变量共同作用。
+static continuous 公式仍然是：
 
-所以需要区分两个目标：
+[
+S_t^*=39.95198926812065-4.127707783337646log(P_t)
+]
 
-### A. 复刻目标
+简单 challenger：
 
-只要：
+[
+S_t=operatorname{round}_{0.1}(S_t^*)
+]
 
-```text
-past published stars + current price
-```
+这个 model class 在未来数据恢复之前已经存在于 P2 discrete candidate set 中，所以可以合法作为 prospective comparator。
 
-就能高精度预测下一星级。
+需要同时看到两边证据：
 
-当前已经取得明显进展。
+- 在较长的 2025–2026 已观察历史阶段，static nearest-0.1 的 MAE 约 **0.03766**，比 adaptive post-hoc 的 0.01832 差；
+- 但在真正未来的 23 天里，static nearest-0.1 **反而最好**。
 
-### B. 机制解释目标
-
-要进一步回答：
-
-> 银行螺丝钉自己为什么会调整这个 anchor？
-
-这个问题目前还没有解决。
+因此暂时没有资格选出最终生产公式。
 
 ---
 
-## 13. 下一步工作的优先级
+## 11. 当前研究判断
 
-### P2-A：真正前瞻验证
+现在最可靠的机制层级是：
 
-一旦获得 2026-09-01 之后：
-
-- A 股全指价格；
-- 新公开星级；
-
-直接运行冻结 evaluator。
-
-**不得重新调参。**
-
-这是最高优先级。
-
-### P2-B：补旧历史语料
-
-如果能够恢复 2012–2020 公众号历史文章，则可覆盖：
-
-- 2015 牛市；
-- 2016–2018；
-- 2019–2021；
-- 多轮完整牛熊周期。
-
-这样才能真正检验：
-
-- anchor 是否长期漂移；
-- anchor 是否存在结构性 reset；
-- 10-star rolling mean 是否只是近几年特例；
-- hysteresis 是否跨周期稳定。
-
-### P2-C：解释 anchor
-
-只有在更长历史中确认动态 anchor 稳定存在后，再研究：
+### 高置信度
 
 ```text
-anchor_t
-~
-earnings
-GDP
-PB/PE regime
+A股全指价格
+    ↓
+星级主要反向变化
+```
+
+### 中等置信度
+
+```text
+存在一个近似线性的 log-price → latent-star 映射
+系数约 -4.1277
+```
+
+### 尚未确认
+
+```text
+anchor 是否持续动态漂移
+是否必须使用最近10个星级校准
+是否存在稳定 hysteresis
+上下行阈值是否固定
+```
+
+第一段未来数据明显提高了“**简单 static anchor + 0.1 rounding**”的可信度。
+
+但 23 天仍然太短，不能否定长期 anchor drift。
+
+---
+
+## 12. 下一阶段实验设计
+
+后续不再用 2026-09-01～2026-10-09 调任何旧候选参数。
+
+从 **2026-10-09 之后的新交易日**开始，至少并行跟踪：
+
+### Model A：原 frozen adaptive candidate
+
+```text
+10-star rolling anchor
++
+price latent score
++
++0.07 / -0.06 hysteresis
+```
+
+参数永不回调。
+
+### Model B：simple static-round challenger
+
+```text
+latent =
+39.95198926812065
+-4.127707783337646 * log(price)
+
+prediction =
+nearest 0.1 star
+```
+
+不增加参数。
+
+主要比较：
+
+- MAE；
+- exact match；
+- ≤0.1 rate；
+- change-day recall / precision；
+- 连续不同市场阶段的稳定性。
+
+只有未来样本继续扩展后，才能决定 Model A 还是 Model B 更接近真实规则。
+
+---
+
+## 13. 仍需补的长期证据
+
+### A. 继续前瞻采集
+
+优先级最高。
+
+每新增公开星级：
+
+1. 保存原始公开证据；
+2. 保存同日 000985.SH 收盘点位；
+3. 不改模型；
+4. 直接追加 prospective evaluation。
+
+### B. 补 2012–2020 历史语料
+
+用于判断：
+
+- static intercept 是否跨周期稳定；
+- anchor 是否只在某些牛熊阶段 reset；
+- hysteresis 是否是长期规律。
+
+### C. 解释 anchor
+
+只有当长周期证据重新确认 anchor drift 后，再研究：
+
+```text
+earnings / GDP
+PE/PB regime
 index composition
-rate environment
-manual reset
+interest rates
+manual recalibration
 ```
 
-不要提前重新堆多因子。
-
-### P2-D：继续 Target 审计
-
-原则：
-
-> 先判断 residual 是不是标签问题，再判断是不是机制问题。
-
-明确收盘 exact 不能因为模型误差大就被改写。
+目前不应重新堆多因子。
 
 ---
 
-## 14. 当前项目文件导航
+## 14. 当前文件导航
 
 后续新会话优先阅读：
 
 ```text
 research/CURRENT_RESEARCH_STATE.md
+research/p2_first_prospective_validation.md
 research/p2_frozen_candidate.json
 research/p2_price_mechanics_findings.md
+```
+
+未来验证数据：
+
+```text
+data/verified/star_target_prospective_2026_09_onward.csv
+data/verified/csi_all_share_prospective_2026_08_31_2026_10_09.csv
 ```
 
 核心脚本：
 
 ```text
-research/dynamic_price_residual_analysis.py
-research/p2_discrete_price_mechanics.py
-research/p2_online_anchor_analysis.py
-research/p2_adaptive_hysteresis_analysis.py
 research/p2_prospective_validation.py
+research/fetch_csi_all_share_prospective_prices.py
+research/p2_adaptive_hysteresis_analysis.py
+research/p2_online_anchor_analysis.py
+research/p2_discrete_price_mechanics.py
+research/dynamic_price_residual_analysis.py
 ```
 
-Target：
+冻结完整性测试：
 
 ```text
-data/derived/star_target_2022_2026_unified.csv
-data/derived/star_target_2022_2026_audit.json
+tests/test_p2_frozen_candidate.py
 ```
 
-当前研究分支：
+当前分支：
 
 ```text
 research/p2-price-mechanics
@@ -658,12 +604,8 @@ PR：
 #3 P2: clean targets and model adaptive price mechanics
 ```
 
-在真正前瞻验证完成之前：
-
-> **不要把 P2 候选合并成“已确认最终公式”的结论。**
-
 ---
 
 ## 15. 一句话研究状态
 
-> **当前最有希望的复刻公式是“价格驱动的连续潜在星级 + 最近已发布星级反推的动态 anchor + hysteresis 发布规则”；历史拟合已经非常接近，但最大的剩余问题是缺少完全未参与模型开发的 2026-09-01 以后未来数据进行严格前瞻验证。**
+> **第一段真正的未来验证已经完成：价格主导假设得到很强支持，但 dynamic anchor + hysteresis 并未在未来 23 个交易日胜过更简单的 static price + 0.1 rounding；当前最重要任务是保持两套模型不调参，在 2026-10-09 之后继续做真正 head-to-head 前瞻验证。**
