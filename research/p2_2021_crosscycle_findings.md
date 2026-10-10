@@ -88,6 +88,30 @@ best shift ≈ -0.21 star
 
 These shifts are diagnostics only and must not be promoted into a predictive model.
 
+## 3.1 Fine-star overlap check
+
+One 2021 article provides both the coarse public state and a finer contemporaneous estimate on the same date:
+
+```text
+2021-09-24
+public state: still 3.5-star
+finer position: about 3.9-star
+```
+
+The unchanged 2022-2024 static formula predicts approximately:
+
+```text
+4.18 latent star
+```
+
+Thus even relative to the article's own finer 3.9-star statement, the modern static formula is high by roughly:
+
+```text
+0.28 star
+```
+
+This is important because it shows that the backward mismatch is not explained only by the old 0.5-star display granularity. A real anchor/method displacement remains after comparing against a finer contemporaneous estimate.
+
 ## 4. Interpretation
 
 The 2021 evidence strongly rejects a universal 2021-2026 formula with one fixed intercept.
