@@ -675,3 +675,111 @@ data/verified/star_historical_version_anchors.csv
 ```
 
 当前最大的长期机制问题进一步收敛为：如何取得并版本化 2012–2021 小程序 backcast 星级，并与同期公开文章 contemporaneous 星级做重叠校准，以判断小程序是否使用了回溯重算公式。
+
+---
+
+## 18. 2021 跨周期验证的新结论
+
+已从现有 Google Drive contemporaneous 公众号语料中恢复一批 2021 历史星级：
+
+```text
+data/verified/star_target_2021_crosscycle_sample.csv
+```
+
+当前样本：
+
+```text
+24 个日期
+23 个 0.5 星粗粒度公开状态
+1 个 3.5-4.0 明确边界
+```
+
+2021 的发布体系和现代 0.1 星体系不同。同期文章明确显示：
+
+- 3.5 / 4.0 半星级是公开状态；
+- 2021-03-23 讨论 3.5 与 4.0 边界反复切换；
+- 2021-09-24 同时写“还是3.5星级”和“约在3.9星级的水平”。
+
+因此 2021 的 3.5 应理解为 coarse bucket，而不是现代意义上的精确 3.5 点：
+
+```text
+3.5-star publication ≈ latent [3.5, 4.0)
+4.0-star publication ≈ latent [4.0, 4.5)
+```
+
+用完全不重训的现代 static price formula 向后投射：
+
+```text
+latent =
+39.95198926812065
+-4.127707783337646 * log(CSI All Share)
+```
+
+按正确 coarse-bucket 语义评价：
+
+```text
+2021 coarse-bucket MAE ≈ 0.173 star
+直接落入正确 bucket ≈ 25%
+最大 bucket miss ≈ 0.689 star
+```
+
+因此：
+
+> **2022-2024 的 fixed-intercept static formula 不是跨 2021-2026 的永久公式。**
+
+但如果保持 price slope 完全不变，只做一个 post-hoc intercept translation 来量化 anchor 位移：
+
+```text
+full 2021 best shift ≈ -0.389 star
+bucket MAE after shift ≈ 0.045
+inside-bucket rate ≈ 75%
+```
+
+而且 2021 内部也有变化：
+
+```text
+Jan-Apr best shift ≈ -0.48
+Sep-Nov best shift ≈ -0.21
+```
+
+这进一步支持：
+
+```text
+短期：price slope 相对稳定
+长期：anchor / 同星级对应点位会移动
+发布层：历史粒度与现代粒度不同
+```
+
+这与官方长期例子“同为5星，中证全指点位从 2013/2018 到 2024 持续上移，主要归因于上市公司盈利增长”的方向一致，但目前不能把 2021 intercept shift 全部解释为盈利增长，因为其中还可能包含方法版本变化和 coarse publication effect。
+
+这轮历史工作还发现并修复了一个 Target parser bug：
+
+```text
+没有回到4星级
+没回到4星级
+```
+
+此前可能被误识别为当前 4 星；现在已加入 negation filter 和 regression tests。
+
+详细记录：
+
+```text
+research/p2_2021_crosscycle_findings.md
+research/p2_2021_crosscycle_validation.py
+```
+
+### 当前最重要的机制问题进一步收敛
+
+现在已经不应继续争论“static 还是 dynamic 哪个日频拟合更漂亮”。
+
+更准确的问题是：
+
+> **短期价格敏感度似乎相对稳定，但长期 anchor 如何随盈利、估值体系和方法版本共同演化？**
+
+下一阶段长期研究的最高优先级仍是：
+
+1. 获取并版本化 2012-2021 小程序 backcast 星级；
+2. 与 contemporaneous published star 做重叠校准；
+3. 判断小程序历史序列是否经过统一回溯重算；
+4. 在版本化历史 Target 上再研究长期 anchor 与盈利水平的关系。
+
