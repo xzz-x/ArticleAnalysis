@@ -59,6 +59,8 @@ jobs:
         run: python research/p2_equity_bond_ratio_calibration.py
       - name: Run source-aligned Buffett and equity-bond model
         run: python research/p2_source_aligned_core_model.py
+      - name: Run source-aligned CSI valuation model
+        run: python research/p2_source_aligned_valuation_model.py
       - name: Run frozen prospective evaluator
         run: python research/p2_prospective_validation.py
       - name: Upload P1 P2 outputs
@@ -104,5 +106,7 @@ jobs:
             data/derived/p2_source_aligned_core_model_coefficients.csv
             data/derived/p2_source_aligned_core_model_predictions.csv
             data/derived/p2_source_aligned_core_model_summary.json
+            data/derived/p2_source_aligned_valuation_model_coefficients.csv
+            data/derived/p2_source_aligned_valuation_model_summary.json
             data/derived/p2_prospective_validation.csv
             data/derived/p2_prospective_validation_summary.json
