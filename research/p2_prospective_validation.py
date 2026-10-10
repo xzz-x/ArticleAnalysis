@@ -172,22 +172,87 @@ def main()->None:
     result=predict(frame,spec)
 
     observed=result["actual_exact_star"].notna() if not result.empty else pd.Series(dtype=bool)
+
+    metrics: dict[str, object] = {}
+    if len(result) and observed.any():
+        evaluated = result.loc[observed].copy()
+        errors = pd.to_numeric(evaluated["absolute_error"], errors="coerce")
+        pred = pd.to_numeric(evaluated["prediction"], errors="coerce")
+        actual = pd.to_numeric(evaluated["actual_exact_star"], errors="coerce")
+        persistence = pd.to_numeric(evaluated["previous_published_state"], errors="coerce")
+        persistence_error = (persistence - actual).abs()
+
+        actual_delta = actual - persistence
+        predicted_delta = pred - persistence
+        actual_direction = np.sign(np.round(actual_delta.to_numpy(dtype=float), 8))
+        predicted_direction = np.sign(np.round(predicted_delta.to_numpy(dtype=float), 8))
+        actual_change = actual_direction != 0
+        predicted_change = predicted_direction != 0
+        direction_match = actual_direction == predicted_direction
+        true_change_direction = direction_match & actual_change
+
+        result.loc[evaluated.index, "exact_match"] = np.isclose(
+            pred.to_numpy(dtype=float), actual.to_numpy(dtype=float), atol=1e-8
+        )
+        result.loc[evaluated.index, "within_0_1"] = errors.to_numpy(dtype=float) <= 0.1000001
+        result.loc[evaluated.index, "persistence_prediction"] = persistence.to_numpy(dtype=float)
+        result.loc[evaluated.index, "actual_delta_vs_previous"] = actual_delta.to_numpy(dtype=float)
+        result.loc[evaluated.index, "predicted_delta_vs_previous"] = predicted_delta.to_numpy(dtype=float)
+
+        worst = (
+            evaluated.assign(
+                prediction=pred,
+                actual_exact_star=actual,
+                absolute_error=errors,
+            )
+            .sort_values(["absolute_error", "date"], ascending=[False, True])
+            .head(10)
+        )
+        metrics = {
+            "exactMae": float(errors.mean()),
+            "rmse": float(np.sqrt(np.mean(np.square(errors.to_numpy(dtype=float))))),
+            "maxAbsoluteError": float(errors.max()),
+            "exactMatchRate": float(np.isclose(pred, actual, atol=1e-8).mean()),
+            "within0_1Rate": float((errors <= 0.1000001).mean()),
+            "persistenceBaselineMae": float(persistence_error.mean()),
+            "persistenceExactMatchRate": float(np.isclose(persistence, actual, atol=1e-8).mean()),
+            "actualChangeDays": int(actual_change.sum()),
+            "predictedChangeDays": int(predicted_change.sum()),
+            "changeStateAccuracy": float(direction_match.mean()),
+            "actualChangeDirectionRecall": (
+                float(true_change_direction.sum() / actual_change.sum())
+                if actual_change.sum() else None
+            ),
+            "predictedChangePrecision": (
+                float(true_change_direction.sum() / predicted_change.sum())
+                if predicted_change.sum() else None
+            ),
+            "largestErrors": [
+                {
+                    "date": str(row.date),
+                    "prediction": float(row.prediction),
+                    "actual": float(row.actual_exact_star),
+                    "absoluteError": float(row.absolute_error),
+                }
+                for row in worst.itertuples(index=False)
+                if float(row.absolute_error) > 1e-8
+            ],
+        }
+
     summary={
         "candidateVersion":spec["version"],
         "targetCutoff":spec["target_cutoff"],
         "prospectiveStart":spec["prospective_start"],
         "prospectiveRows":int(len(result)),
         "observedExactRows":int(observed.sum()) if len(result) else 0,
-        "exactMae":(
-            float(result.loc[observed,"absolute_error"].mean())
-            if len(result) and observed.any() else None
-        ),
+        **metrics,
         "status":(
             "evaluated"
             if len(result) and observed.any()
             else "awaiting_genuinely_unseen_price_and_target_data"
         ),
         "parametersFrozen":True,
+        "evaluationOnlyChange":True,
     }
 
     args.output.parent.mkdir(parents=True,exist_ok=True)
