@@ -136,14 +136,14 @@ def main() -> None:
             )
 
     detail_all = pd.concat(detail_frames, ignore_index=True)
-    candidates = pd.DataFrame(candidate_rows).sort_values(
-        ["x100_mae", "x100_mape"], ignore_index=True
-    )
-    best = candidates.iloc[0]
+    candidates = pd.DataFrame(candidate_rows)
+    candidates = candidates.sort_values(["raw_mae", "raw_mape"], ignore_index=True)
+    best_raw = candidates.iloc[0]
+    best_x100 = candidates.sort_values(["x100_mae", "x100_mape"], ignore_index=True).iloc[0]
 
     best_detail = detail_all[
-        detail_all["index_code"].eq(best["stockCode"])
-        & detail_all["weighting"].eq(best["weighting"])
+        detail_all["index_code"].eq(best_raw["stockCode"])
+        & detail_all["weighting"].eq(best_raw["weighting"])
     ].copy()
 
     ratio_of_scales = (
@@ -162,24 +162,43 @@ def main() -> None:
             anchors["date"].min().strftime("%Y-%m-%d"),
             anchors["date"].max().strftime("%Y-%m-%d"),
         ],
-        "bestPanelMatchAfterPercentUnitCorrection": {
-            "stockCode": str(best["stockCode"]),
-            "indexName": str(best["index_name"]),
-            "weighting": str(best["weighting"]),
-            "mae": float(best["x100_mae"]),
-            "mape": float(best["x100_mape"]),
-            "bias": float(best["x100_bias"]),
-            "correlation": float(best["x100_correlation"]),
+        "sourceAlignedBestRawMatch": {
+            "stockCode": str(best_raw["stockCode"]),
+            "indexName": str(best_raw["index_name"]),
+            "weighting": str(best_raw["weighting"]),
+            "mae": float(best_raw["raw_mae"]),
+            "mape": float(best_raw["raw_mape"]),
+            "correlation": float(
+                summaries[f"{best_raw['stockCode']}:{best_raw['weighting']}"]["raw"]["correlation"]
+            ),
+            "verdict": (
+                "confirmed_source_aligned_proxy"
+                if str(best_raw["stockCode"]) == "000985"
+                and str(best_raw["weighting"]) == "mcw"
+                and float(best_raw["raw_mape"]) < 0.02
+                else "closest_proxy_only"
+            ),
+        },
+        "bestX100Diagnostic": {
+            "stockCode": str(best_x100["stockCode"]),
+            "indexName": str(best_x100["index_name"]),
+            "weighting": str(best_x100["weighting"]),
+            "mae": float(best_x100["x100_mae"]),
+            "mape": float(best_x100["x100_mape"]),
         },
         "unitAudit": {
-            "meanBondYieldPanelUnitsForBest": float(best["mean_bond_yield_panel_units"]),
+            "meanBondYieldPanelUnitsForBest": float(best_raw["mean_bond_yield_panel_units"]),
             "medianOfficialToRawRatio": float(ratio_of_scales.median()),
             "meanOfficialToRawRatio": float(ratio_of_scales.mean()),
             "expectedIfBondYieldStoredInPercentagePoints": 100.0,
             "verdict": (
-                "panel_equity_bond_ratio_has_percent_unit_scale_bug"
-                if abs(float(ratio_of_scales.median()) - 100.0) < 15.0
-                else "no_simple_100x_unit_bug_confirmed"
+                "panel_raw_units_already_match_official_ratio"
+                if abs(float(ratio_of_scales.median()) - 1.0) < 0.05
+                else (
+                    "panel_equity_bond_ratio_has_percent_unit_scale_bug"
+                    if abs(float(ratio_of_scales.median()) - 100.0) < 15.0
+                    else "scale_or_proxy_mismatch"
+                )
             ),
         },
         "allCandidates": summaries,
