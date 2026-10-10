@@ -68,18 +68,21 @@ def main() -> None:
     parser.add_argument("--anchor-date", default="2026-08-31")
     parser.add_argument("--anchor-close", type=float, default=5969.33)
     parser.add_argument("--anchor-tolerance", type=float, default=0.05)
+    parser.add_argument("--skip-anchor-check", action="store_true")
     args = parser.parse_args()
 
     frame = fetch_eastmoney(args.start, args.end)
-    anchor = frame[frame["date"] == args.anchor_date]
-    if anchor.empty:
-        raise RuntimeError(f"anchor date {args.anchor_date} missing from public 000985 series")
-    observed = float(anchor.iloc[0]["cp"])
-    if abs(observed - args.anchor_close) > args.anchor_tolerance:
-        raise RuntimeError(
-            f"000985 proxy mismatch on {args.anchor_date}: public={observed}, "
-            f"frozen-series={args.anchor_close}, tolerance={args.anchor_tolerance}"
-        )
+    observed = None
+    if not args.skip_anchor_check:
+        anchor = frame[frame["date"] == args.anchor_date]
+        if anchor.empty:
+            raise RuntimeError(f"anchor date {args.anchor_date} missing from public 000985 series")
+        observed = float(anchor.iloc[0]["cp"])
+        if abs(observed - args.anchor_close) > args.anchor_tolerance:
+            raise RuntimeError(
+                f"000985 proxy mismatch on {args.anchor_date}: public={observed}, "
+                f"frozen-series={args.anchor_close}, tolerance={args.anchor_tolerance}"
+            )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(args.output, index=False, encoding="utf-8-sig")
@@ -91,9 +94,9 @@ def main() -> None:
                 "rows": int(len(frame)),
                 "minDate": str(frame["date"].min()),
                 "maxDate": str(frame["date"].max()),
-                "anchorDate": args.anchor_date,
+                "anchorDate": None if args.skip_anchor_check else args.anchor_date,
                 "anchorClose": observed,
-                "anchorMatched": True,
+                "anchorMatched": None if args.skip_anchor_check else True,
                 "output": str(args.output),
             },
             ensure_ascii=False,
