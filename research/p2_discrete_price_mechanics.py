@@ -265,11 +265,21 @@ def main() -> None:
     slope = float(price_fit[1][0])
     implied_pct_per_0_1 = float(100 * np.expm1(0.1 / abs(slope)))
 
+    selected_model_row = grid.sort_values(
+        ["cv_exact_mae", "cv_interval_mae"]
+    ).iloc[0]
+    selected_model = str(selected_model_row["model"])
+    selected_holdout = metrics[metrics["model"] == selected_model].iloc[0]
+
     summary = {
         "selectionPolicy": (
-            "All quantization/sticky/hysteresis parameters are selected only on "
-            "2023-2024 expanding validation. 2025-2026 is a locked holdout."
+            "All mechanism classes and their parameters are selected only on "
+            "2023-2024 expanding validation. 2025-2026 is a locked holdout and "
+            "must not be used to switch from the pre-holdout-selected mechanism."
         ),
+        "selectedMechanismByPreHoldout": selected_model,
+        "selectedMechanismPreHoldoutExactMae": float(selected_model_row["cv_exact_mae"]),
+        "selectedMechanismHoldoutExactMae": float(selected_holdout["exact_mae"]),
         "priceCoefficient": slope,
         "impliedIndexMovePctPer0_1Star": implied_pct_per_0_1,
         "bestPreHoldoutByModel": {
