@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from dynamic_price_residual_analysis import REPO
+from dynamic_price_residual_analysis import REPO, fit_linear
 
 DEFAULT_SPEC = REPO / "research" / "p2_frozen_candidate.json"
 DEFAULT_PANEL = REPO / "data" / "features" / "star_model_panel_2022_2026.csv"
@@ -176,6 +176,23 @@ def main()->None:
     metrics: dict[str, object] = {}
     if len(result) and observed.any():
         evaluated = result.loc[observed].copy()
+
+        # Prospective comparison against model classes that already existed
+        # before the future Sep-Oct target recovery. This is evaluation only:
+        # it does not alter the frozen adaptive candidate.
+        historical_train = frame[frame["date"] <= pd.Timestamp("2024-12-31")].copy()
+        static_fit = fit_linear(historical_train, ["log_close"])
+        static_intercept = float(static_fit[0])
+        static_slope = float(static_fit[1][0])
+        frozen_slope = float(spec["latent_score"]["price_coefficient"])
+        if abs(static_slope - frozen_slope) > 1e-10:
+            raise RuntimeError(
+                f"static comparison slope {static_slope} differs from frozen slope {frozen_slope}"
+            )
+        result_log_close = np.log(pd.to_numeric(evaluated["cp"], errors="coerce"))
+        static_latent = static_intercept + static_slope * result_log_close
+        static_rounded = np.round(static_latent / 0.1) * 0.1
+        online_anchor_latent = pd.to_numeric(evaluated["latent_star"], errors="coerce")
         errors = pd.to_numeric(evaluated["absolute_error"], errors="coerce")
         pred = pd.to_numeric(evaluated["prediction"], errors="coerce")
         actual = pd.to_numeric(evaluated["actual_exact_star"], errors="coerce")
@@ -208,6 +225,21 @@ def main()->None:
             .sort_values(["absolute_error", "date"], ascending=[False, True])
             .head(10)
         )
+        def comparison_metrics(values: pd.Series | np.ndarray) -> dict[str, float]:
+            values_arr = np.asarray(values, dtype=float)
+            actual_arr = actual.to_numpy(dtype=float)
+            comp_error = np.abs(values_arr - actual_arr)
+            return {
+                "mae": float(comp_error.mean()),
+                "rmse": float(np.sqrt(np.mean(np.square(comp_error)))),
+                "maxAbsoluteError": float(comp_error.max()),
+                "exactMatchRate": float(np.isclose(values_arr, actual_arr, atol=1e-8).mean()),
+                "within0_1Rate": float((comp_error <= 0.1000001).mean()),
+            }
+
+        result.loc[evaluated.index, "static_latent_prediction"] = np.asarray(static_latent, dtype=float)
+        result.loc[evaluated.index, "static_rounded_prediction"] = np.asarray(static_rounded, dtype=float)
+
         metrics = {
             "exactMae": float(errors.mean()),
             "rmse": float(np.sqrt(np.mean(np.square(errors.to_numpy(dtype=float))))),
@@ -216,6 +248,15 @@ def main()->None:
             "within0_1Rate": float((errors <= 0.1000001).mean()),
             "persistenceBaselineMae": float(persistence_error.mean()),
             "persistenceExactMatchRate": float(np.isclose(persistence, actual, atol=1e-8).mean()),
+            "prospectiveModelComparison": {
+                "staticContinuous": comparison_metrics(static_latent),
+                "staticRoundNearest0_1": comparison_metrics(static_rounded),
+                "onlineAnchorContinuous": comparison_metrics(online_anchor_latent),
+                "frozenAdaptiveHysteresis": comparison_metrics(pred),
+                "persistencePreviousPublishedStar": comparison_metrics(persistence),
+            },
+            "staticComparisonIntercept": static_intercept,
+            "staticComparisonSlope": static_slope,
             "actualChangeDays": int(actual_change.sum()),
             "predictedChangeDays": int(predicted_change.sum()),
             "changeStateAccuracy": float(direction_match.mean()),
