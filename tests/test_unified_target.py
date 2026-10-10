@@ -20,7 +20,7 @@ def test_unified_target_has_one_row_per_date() -> None:
     assert target["date"].is_unique
     assert target["date"].min() == "2022-01-04"
     assert target["date"].max() == "2026-08-31"
-    assert int((target["training_weight"] > 0).sum()) == 1127
+    assert int((target["training_weight"] > 0).sum()) == 1126
 
 
 def test_direct_article_evidence_overrides_conflicting_legacy_2025_value() -> None:
@@ -58,10 +58,12 @@ def test_threshold_only_and_market_closed_rows_are_not_trainable_targets() -> No
         assert date not in target.index
 
 
-def test_legacy_only_gap_fill_is_explicit_and_downweighted() -> None:
+def test_2025_08_26_intraday_threshold_is_not_promoted_to_closing_exact() -> None:
     row = load_target().set_index("date").loc["2025-08-26"]
 
-    assert row["star"] == 4.2
-    assert row["source_priority"] == "legacy_only_gap_fill"
-    assert row["training_weight"] == 0.7
-    assert row["review_status"] == "needs_direct_evidence_audit"
+    assert row["status"] == "threshold"
+    assert pd.isna(row["star"])
+    assert pd.isna(row["target_mid"])
+    assert row["source_priority"] == "direct_article_interval_or_threshold"
+    assert row["training_weight"] == 0
+    assert row["review_status"] == "next_day_backlink_intraday_threshold"
