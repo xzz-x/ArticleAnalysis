@@ -9,7 +9,8 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[1]
 SPEC = REPO / "research" / "p2_frozen_candidate.json"
 FUTURE_TARGET = REPO / "data" / "verified" / "star_target_prospective_2026_09_onward.csv"
-FUTURE_PRICE = REPO / "data" / "verified" / "csi_all_share_prospective_2026_08_31_2026_10_09.csv"\nCHALLENGER = REPO / "research" / "p2_static_round_challenger.json"
+FUTURE_PRICE = REPO / "data" / "verified" / "csi_all_share_prospective_2026_08_31_2026_10_09.csv"
+CHALLENGER = REPO / "research" / "p2_static_round_challenger.json"
 
 
 def load_spec() -> dict:
