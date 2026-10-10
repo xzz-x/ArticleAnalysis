@@ -77,6 +77,10 @@ jobs:
         run: python research/p2_official_20pct_star_rule.py
       - name: Run frozen prospective evaluator
         run: python research/p2_prospective_validation.py
+      - name: Fetch 2021 CSI All Share history
+        run: python research/fetch_csi_all_share_prospective_prices.py --start 2021-01-01 --end 2021-12-31 --output data/derived/csi_all_share_2021_prices.csv --anchor-date 2021-01-12 --anchor-close 0 --anchor-tolerance 100000
+      - name: Run 2021 cross-cycle validation
+        run: python research/p2_2021_crosscycle_validation.py
       - name: Upload P1 P2 outputs
         uses: actions/upload-artifact@v4
         with:
@@ -140,3 +144,6 @@ jobs:
             data/derived/p2_official_20pct_star_rule_summary.json
             data/derived/p2_prospective_validation.csv
             data/derived/p2_prospective_validation_summary.json
+            data/derived/csi_all_share_2021_prices.csv
+            data/derived/p2_2021_crosscycle_validation.csv
+            data/derived/p2_2021_crosscycle_validation_summary.json
