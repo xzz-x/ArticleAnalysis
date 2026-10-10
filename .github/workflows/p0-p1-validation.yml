@@ -53,6 +53,8 @@ jobs:
         run: python research/p2_price_slope_fixed_effects.py
       - name: Run officially disclosed factor model
         run: python research/p2_disclosed_factor_model.py
+      - name: Search disclosed-factor valuation specifications
+        run: python research/p2_disclosed_factor_spec_search.py
       - name: Run frozen prospective evaluator
         run: python research/p2_prospective_validation.py
       - name: Upload P1 P2 outputs
@@ -89,5 +91,8 @@ jobs:
             data/derived/p2_disclosed_factor_model_predictions.csv
             data/derived/p2_disclosed_factor_model_coefficients.csv
             data/derived/p2_disclosed_factor_model_summary.json
+            data/derived/p2_disclosed_factor_spec_search_candidates.csv
+            data/derived/p2_disclosed_factor_spec_search_coefficients.csv
+            data/derived/p2_disclosed_factor_spec_search_summary.json
             data/derived/p2_prospective_validation.csv
             data/derived/p2_prospective_validation_summary.json
