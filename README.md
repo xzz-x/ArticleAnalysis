@@ -4,6 +4,25 @@
 
 当前重点项目：**银行螺丝钉公众号历史文章分析与“投资星级”复刻**。
 
+## 当前研究状态（后续工作请先读）
+
+当前权威研究快照：
+
+```text
+research/CURRENT_RESEARCH_STATE.md
+```
+
+冻结候选模型：
+
+```text
+research/p2_frozen_candidate.json
+```
+
+当前 P2 已从“多因子找解释”推进到“**价格驱动 latent star + 动态 anchor + hysteresis 发布规则**”。
+现阶段最大的未解决问题不是继续找 PB / GDP / ROE 因子，而是缺少 **2026-09-01 以后真正未参与模型开发的前瞻数据**。
+较早 P0/P1 段落保留用于研究过程追踪；若数值或结论与当前快照冲突，以
+`research/CURRENT_RESEARCH_STATE.md` 和冻结 spec 为准。
+
 ## 分支约定
 
 - `main`：只保留稳定、可复用的项目基线。
@@ -197,7 +216,7 @@ python research/build_unified_star_target.py
 
 截至本轮审计，统一 Target 仍为 **1129 个日期**（2022-01-04 至 2026-08-31），其中
 2022–2024 有 **472 条 historical direct exact evidence**、**62 条 direct interval/threshold**
-和 **192 条 verified annual fallback**；全样本共有 **1127 条可训练记录**。历史 direct
+和 **192 条 verified annual fallback**；全样本当前共有 **1126 条可训练记录**；2025-08-26 已在 P2 审计中从 legacy exact 降级为 threshold-only、训练权重为 0。历史 direct
 小数证据与 legacy 年度表中已人工核验的已知冲突已清零。
 
 ### 构建 point-in-time 因子面板
@@ -273,7 +292,7 @@ P1 固定使用 A股全指，先以 2022–2024 拟合 `Star ~ log(index price)`
 因此暂不能把盈利/GDP 写成固定的长期重定标公式。下一步应重点调查 price-change residual
 最大的日期，并在获得 2012–2020 旧语料后再检验跨完整牛熊周期的 anchor drift。
 
-当前自动化测试为 **42 项通过**；P0/P1 CI 会先重建统一 Target，再运行测试和锁定 P1 分析。
+当前 CI 会先重建统一 Target，再运行完整测试，并继续执行 P1、P2 离散机制、online anchor、adaptive hysteresis 和 frozen prospective evaluator；最新 P2 流水线已通过。
 
 
 ## 与 xzz-x/ETF 的关系
@@ -324,6 +343,6 @@ python research/download_lixinger_star_factors.py
 
 1. 优先补齐 canonical corpus 中缺失的 **2012–2020** 历史文章，再用同一 realtime pipeline 恢复跨完整牛熊周期 Target；
 2. 对 2025–2026 review queue 剩余交易日继续寻找正文、HTML 元数据或其他可核验证据，5 星附近的饱和图形不强行读数；
-3. 逐日审计 P1 中 price-change residual 最大的日期，优先核验 **2025-08-26**（当前仍是 legacy-only gap fill）；
-4. 在更长历史 Target 上检验 price anchor 是否存在结构性变点/缓慢漂移，再决定是否引入盈利、GDP 或利率驱动的动态重定标；
-5. 只有在预留前验证和跨周期 holdout 均有稳定增益时，才接受新的 residual/qualitative factor。
+3. 2025-08-26 已完成审计并降级为 threshold-only；后续只继续审计其他大 residual 日期，不因模型残差反向修改已有明确收盘证据；
+4. 当前已确认 rolling anchor 明显优于 static price-only；下一步在更长历史 Target 上检验 anchor 漂移/结构性 reset 是否跨周期稳定，并解释其经济来源；
+5. 已冻结 P2 候选参数，从 2026-09-01 起等待真正未见数据做前瞻验证；在此期间不得因未来误差重新调 slope、anchor window、hysteresis threshold 或价格 proxy。
