@@ -608,4 +608,70 @@ PR：
 
 ## 15. 一句话研究状态
 
-> **第一段真正的未来验证已经完成：价格主导假设得到很强支持，但 dynamic anchor + hysteresis 并未在未来 23 个交易日胜过更简单的 static price + 0.1 rounding；当前最重要任务是保持两套模型不调参，在 2026-10-09 之后继续做真正 head-to-head 前瞻验证。**
+> **短期星级由价格主导已经较稳；第一段未来验证更偏向 static price + 0.1 rounding，而官方长期证据又明确表明同星级点位会随盈利增长上移。当前最关键的下一步，是保持未来模型不调参，同时取得并版本化 2012–2021 小程序 backcast 星级，与 contemporaneous 历史发布值重叠校准，识别长期 anchor 和方法版本演化。**
+
+---
+
+## 16. 官方披露机制与盈利水平的新结论
+
+2026 年银行螺丝钉公开课程明确说明：星级综合考虑整体估值、盈利增长、成交量和市场情绪；同样 5 星时，中证全指约从 2013 年 2700 点、2018 年 3400 点上移到 2024 年 4800 点，并明确把这种长期点位抬升主要归因于上市公司盈利增长。
+
+因此，一个固定 intercept 的 price-only 公式不可能是 2012–2026 全历史的永久生产公式。
+
+但目前 source-aligned 实证同时表明：
+
+- 按作者公布锚点校准后的中证全指股债性价比口径可信，但没有稳定击败 price-only；
+- PE / PB / 巴菲特指标 / 股债性价比直接组成每日星级模型，也没有稳定胜过 price-only；
+- aggregate earnings level = A股全指点位 / 中证全指 PE 的日频增量作用很小且不稳定；
+- earnings-level raw coefficient 从约 0.41 降到 0.14，在完整 2022–2024 拟合中收缩为 0；
+- 用 earnings level 校正月度 implied anchor 后，anchor 波动反而显著放大。
+
+所以当前必须按时间尺度区分：
+
+```text
+短期（日频）：价格绝对主导。
+中期（2022–2026）：当前 price/PE 构造的盈利水平不能解释 anchor 漂移。
+长期（跨多年）：官方明确认为盈利增长会抬高同星级对应的指数点位；
+这一点需要更长、版本化的历史星级才能真正检验。
+```
+
+相关分析：
+
+```text
+research/p2_official_mechanism_evidence.md
+research/p2_earnings_level_anchor_model.py
+research/p2_earnings_timescale_decomposition.py
+```
+
+---
+
+## 17. 历史星级版本政策
+
+现有 contemporaneous 证据显示发布精度和方法存在明显版本变化：
+
+```text
+2018：4/5 星仍被明确描述为经验性的粗分类。
+2021：公开文章大量使用 3.5 / 4.0 半星级。
+2022-04-07：明确同时出现“粗算 4.5、细算 4.8”。
+2022-05-31：出现“现在算 4.9”的 0.1 星过渡标记。
+2022-06 以后：0.1 星发布逐渐稳定。
+```
+
+因此以后即使从「今天几星」小程序取得 2012–2021 完整历史，也必须区分：
+
+```text
+contemporaneous_published_star
+vs
+current_app_backcast_star
+```
+
+不能把小程序回溯值直接覆盖当年真实发布值。
+
+相关文件：
+
+```text
+research/p2_historical_star_version_policy.md
+data/verified/star_historical_version_anchors.csv
+```
+
+当前最大的长期机制问题进一步收敛为：如何取得并版本化 2012–2021 小程序 backcast 星级，并与同期公开文章 contemporaneous 星级做重叠校准，以判断小程序是否使用了回溯重算公式。
