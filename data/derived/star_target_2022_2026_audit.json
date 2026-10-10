@@ -25,9 +25,9 @@
     },
     "2025": {
       "approx": 0,
-      "exact": 236,
+      "exact": 235,
       "range": 6,
-      "threshold": 1
+      "threshold": 2
     },
     "2026": {
       "approx": 0,
@@ -39,20 +39,13 @@
   "bySourcePriority": {
     "historic_verified_annual": 726,
     "direct_article_evidence": 393,
-    "direct_article_interval_or_threshold": 9,
-    "legacy_only_gap_fill": 1
+    "direct_article_interval_or_threshold": 10,
+    "legacy_only_gap_fill": 0
   },
-  "trainableRows": 1128,
-  "thresholdOnlyRows": 1,
+  "trainableRows": 1127,
+  "thresholdOnlyRows": 2,
   "marketClosedExclusions": 6,
-  "legacyOnlyGapFills": [
-    {
-      "date": "2025-08-26",
-      "star": 4.2,
-      "evidence_confidence": 0.7,
-      "review_status": "needs_direct_evidence_audit"
-    }
-  ],
+  "legacyOnlyGapFills": [],
   "2025SourceConflictCount": 81,
   "sourcePolicy": [
     "2022-2024: direct article evidence overrides verified annual files when the historical pipeline is present; annual files remain fallback",
@@ -60,5 +53,11 @@
     "review intervals remain intervals; threshold-only evidence is not trainable",
     "market-closed articles are excluded",
     "legacy annual data fills only dates absent from both direct evidence and review queue"
-  ]
+  ],
+  "2025-08-26Audit": {
+    "status": "threshold",
+    "referenceStar": 4.2,
+    "evidence": "next-day backlink title says 大盘摸到4.2星",
+    "decision": "intraday/threshold evidence only; unresolved closing star; excluded from training"
+  }
 }
