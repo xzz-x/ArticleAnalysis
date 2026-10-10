@@ -14,6 +14,8 @@ DEFAULT_PANEL = REPO / "data" / "features" / "star_model_panel_2022_2026.csv"
 DEFAULT_TARGET = REPO / "data" / "derived" / "star_target_2022_2026_unified.csv"
 DEFAULT_OUTPUT = REPO / "data" / "derived" / "p2_prospective_validation.csv"
 DEFAULT_SUMMARY = REPO / "data" / "derived" / "p2_prospective_validation_summary.json"
+DEFAULT_PROSPECTIVE_TARGET = REPO / "data" / "verified" / "star_target_prospective_2026_09_onward.csv"
+DEFAULT_PROSPECTIVE_PRICE = REPO / "data" / "derived" / "csi_all_share_prospective_prices.csv"
 
 
 def load_spec(path: Path) -> dict:
@@ -39,6 +41,45 @@ def prepare(panel_path: Path,target_path: Path,stock_code: str)->pd.DataFrame:
         on="date",how="left",validate="one_to_one"
     )
     return panel.sort_values("date").reset_index(drop=True)
+
+
+def append_prospective(
+    frame: pd.DataFrame,
+    price_path: Path | None,
+    target_path: Path | None,
+    stock_code: str,
+) -> pd.DataFrame:
+    if price_path is None or target_path is None:
+        return frame
+    if not price_path.exists() or not target_path.exists():
+        return frame
+
+    price = pd.read_csv(price_path)
+    target = pd.read_csv(target_path)
+    price["date"] = pd.to_datetime(price["date"]).dt.normalize()
+    target["date"] = pd.to_datetime(target["date"]).dt.normalize()
+
+    future = price.merge(target[["date", "star", "status"]], on="date", how="inner", validate="one_to_one")
+    if future.empty:
+        return frame
+
+    future["stockCode"] = str(stock_code).zfill(6)
+    future["log_close"] = np.log(pd.to_numeric(future["cp"], errors="coerce").where(lambda s: s > 0))
+    future["target_star"] = pd.to_numeric(future["star"], errors="coerce")
+    future["target_star_low"] = future["target_star"]
+    future["target_star_high"] = future["target_star"]
+    future["target_target_mid"] = future["target_star"]
+    future["target_status"] = future["status"].astype(str)
+    future["target_training_weight"] = np.where(future["target_status"].eq("exact"), 1.0, 0.0)
+
+    keep = [
+        "date", "stockCode", "cp", "log_close",
+        "target_star", "target_star_low", "target_star_high",
+        "target_target_mid", "target_status", "target_training_weight",
+    ]
+    combined = pd.concat([frame, future[keep]], ignore_index=True, sort=False)
+    combined = combined.sort_values("date").drop_duplicates(subset=["date"], keep="last")
+    return combined.reset_index(drop=True)
 
 
 def observed_star(row: pd.Series)->float|None:
@@ -116,10 +157,18 @@ def main()->None:
     parser.add_argument("--target",type=Path,default=DEFAULT_TARGET)
     parser.add_argument("--output",type=Path,default=DEFAULT_OUTPUT)
     parser.add_argument("--summary",type=Path,default=DEFAULT_SUMMARY)
+    parser.add_argument("--prospective-target",type=Path,default=DEFAULT_PROSPECTIVE_TARGET)
+    parser.add_argument("--prospective-price",type=Path,default=DEFAULT_PROSPECTIVE_PRICE)
     args=parser.parse_args()
 
     spec=load_spec(args.spec)
     frame=prepare(args.panel,args.target,spec["price_proxy"]["stockCode"])
+    frame=append_prospective(
+        frame,
+        args.prospective_price,
+        args.prospective_target,
+        spec["price_proxy"]["stockCode"],
+    )
     result=predict(frame,spec)
 
     observed=result["actual_exact_star"].notna() if not result.empty else pd.Series(dtype=bool)
