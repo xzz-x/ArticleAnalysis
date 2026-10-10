@@ -267,3 +267,66 @@ During prospective validation the following are explicitly prohibited:
 - excluding future dates because they are difficult to predict.
 
 The evaluator intentionally returns an awaiting-data status while the committed panel contains no dates after 2026-08-31. This creates a clean boundary for the next research stage.
+
+
+## First genuine prospective window: 2026-09-01 to 2026-10-09
+
+The first truly post-freeze Target window has now been recovered from public Bank Screw synchronized posts and evaluated without changing the frozen P2 candidate.
+
+Data:
+
+```text
+23 exact trading-day targets
+2026-09-01 through 2026-10-09
+```
+
+Frozen adaptive candidate result:
+
+```text
+MAE                  = 0.02174
+RMSE                 = 0.04663
+exact match          = 78.26%
+within 0.1 star      = 100%
+maximum error        = 0.1
+change recall        = 44.44%
+called-change precision = 100%
+```
+
+The candidate is conservative: it calls 4 changes and all 4 are correct, but misses 5 of the 9 real change days.
+
+More importantly, a simpler mechanism that was already present in the P2 candidate set before the future Target recovery performs better in this window:
+
+```text
+static price + nearest 0.1 rounding
+MAE        = 0.01304
+exact match= 86.96%
+```
+
+The static latent formula is unchanged:
+
+```text
+latent_star =
+39.95198926812065
+- 4.127707783337646 * log(A股全指)
+```
+
+This creates a genuine model-selection tension:
+
+- historical/post-hoc 2025-2026 evidence favored adaptive anchor + hysteresis;
+- the first untouched Sep-Oct future window favors static price + nearest-0.1 rounding.
+
+Therefore dynamic anchor / hysteresis is now a **hypothesis under continued prospective test**, not the confirmed production mechanism.
+
+The original candidate remains frozen. A simple static-round challenger is separately frozen in:
+
+```text
+research/p2_static_round_challenger.json
+```
+
+Its clean confirmatory comparison can use only dates strictly after 2026-10-09.
+
+Full prospective note:
+
+```text
+research/p2_first_prospective_validation.md
+```
